@@ -149,8 +149,8 @@
   .sign h2 { font-size: clamp(30px, 9vw, 40px); }
   .arrow-mark { flex: none; width: 42px; height: 42px; }
   .sign p { margin: 0; font-size: 15px; line-height: 1.45; font-weight: 500; max-width: 40ch; }
-  .rules { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
-  .rules li { display: flex; gap: 12px; align-items: center; font-size: 14px; font-weight: 500; line-height: 1.35; }
+  .rules { display: grid; gap: 5px; margin: 0; padding: 0; list-style: none; }
+  .rules li { display: flex; gap: 12px; align-items: center; font-size: 13px; font-weight: 500; line-height: 1.3; }
   .keys { display: flex; gap: 4px; flex: none; min-width: 64px; }
   kbd {
     font: 700 12px/1 "Overpass Mono", ui-monospace, monospace;
@@ -222,6 +222,16 @@
   .icon-pick[aria-pressed="true"] { border-color: var(--caution); background: #0c5a3a; box-shadow: inset 0 0 0 1px var(--caution); }
   .icon-pick.locked canvas { opacity: .25; filter: grayscale(1) brightness(.4); }
   .row-icon { display: inline-block; vertical-align: -4px; margin-right: 6px; border-radius: 50%; background: #fff; }
+  .missions-box { display: grid; gap: 8px; }
+  .missions { list-style: none; margin: 0; padding: 0; display: grid; gap: 9px; }
+  .missions li { display: grid; grid-template-columns: 1fr auto; gap: 4px 10px; align-items: center; font-size: 13px; font-weight: 700; }
+  .m-bar { height: 6px; border-radius: 3px; background: rgba(0,0,0,.28); overflow: hidden; }
+  .m-bar i { display: block; height: 100%; background: var(--caution); border-radius: 3px; }
+  .m-count { font: 700 11px/1 "Overpass Mono", monospace; opacity: .8; text-align: right; }
+  .m-reward { font: 800 12px/1 "Overpass Mono", monospace; color: var(--coin); text-align: right; }
+  .missions-done { margin: 0; font-size: 13px; color: var(--caution); font-weight: 700; }
+  .run-extra { font-size: 13px !important; opacity: .8; }
+  .modtag { position: fixed; left: 16px; top: calc(78px + env(safe-area-inset-top, 0px)); background: var(--glass); border-radius: 6px; padding: 6px 9px 4px; font: 800 11px/1 "Overpass", system-ui, sans-serif; letter-spacing: .12em; color: var(--caution); pointer-events: none; }
   .rule-rule { height: 0; border-top: 2px solid rgba(246,241,228,.35); }
 
   .garage { display: grid; gap: 9px; }
@@ -360,6 +370,7 @@
 </div>
 
 <div class="cue" id="cue" hidden>TURN</div>
+<div class="modtag" id="modTag" hidden></div>
 <div class="itembox" id="itemWrap" hidden>
   <div class="fxchips" id="fxChips"></div>
   <button class="item-btn" id="itemBtn" type="button" aria-label="Use item"><span class="item-icon" id="itemIcon"></span><span class="item-key">SPACE</span></button>
@@ -379,8 +390,8 @@
         <svg class="arrow-mark" viewBox="0 0 44 44" aria-hidden="true"><path d="M12 40V20a6 6 0 0 1 6-6h12" fill="none" stroke="#f6f1e4" stroke-width="6" stroke-linecap="round"/><path d="M27 4l12 10-12 10z" fill="#f6f1e4"/></svg>
         Turn Signal
       </h1>
-      <p>The road bends. You bend with it. Every clean turn makes you faster until turn 10. After that the road gets meaner: new hazards keep showing up and traffic gets thicker. Every 3 turns takes you somewhere new, and at turn 12 your ride takes off.</p>
-      <p>Every run is a brand-new road. See who else is driving right now, and chase the top of the leaderboard.</p>
+      <p>Turn in the box, dodge everything, keep going. You never stop speeding up, and the road keeps getting meaner. New zone every 3 turns; take off at turn 12.</p>
+      <p>Every run is new: a random starting zone, a shuffled route, and often a twist like Rush Hour or Fog Bank.</p>
       <ul class="rules">
         <li><span class="keys"><kbd>←</kbd><kbd>→</kbd></span>Change lanes to dodge whatever is in the road, holes included. Steer off the edge and your run is over.</li>
         <li><span class="keys"><kbd>←</kbd><kbd>→</kbd></span>Turn only once you are inside the corner box. Too early or too late and you crash. Turning early in the box puts you in the near lane, late in the far lane.</li>
@@ -388,6 +399,7 @@
         <li><span class="qbox" aria-hidden="true">?</span><span>Drive through a ? box for an item: shield, turbo, magnet or jump. Press <b>Space</b> or <b>↑</b> (or tap the item button) to use it.</span></li>
         <li><span class="coin-dot" aria-hidden="true"></span>Grab coins, then spend them on mystery boxes to find new rides.</li>
       </ul>
+      <div class="missions-box"><div class="garage-head"><span>MISSIONS</span><span class="collected">earn coins</span></div><ol class="missions"></ol></div>
       <label class="name-field" for="playerName"><span>YOUR NAME</span>
         <input id="playerName" type="text" maxlength="16" autocomplete="off" spellcheck="false" placeholder="Shown on the leaderboard">
       </label>
@@ -437,12 +449,14 @@
       <div class="badges" id="badges"></div>
       <h2 id="overTitle">Crashed</h2>
       <p class="crash-why" id="crashWhy">You missed the turn.</p>
+      <p class="run-extra" id="runExtra"></p>
       <div class="stats">
         <div class="stat"><b id="oTurns">0</b><span>TURNS</span></div>
         <div class="stat"><b id="oCoins">0</b><span>COINS</span></div>
         <div class="stat"><b id="oSpeed">0</b><span>TOP MPH</span></div>
         <div class="stat"><b id="oBest">0</b><span>BEST</span></div>
       </div>
+      <div class="missions-box"><div class="garage-head"><span>MISSIONS</span><span class="collected">earn coins</span></div><ol class="missions"></ol><p class="missions-done" hidden></p></div>
       <div class="btn-row">
         <button class="go" id="againBtn" type="button">Drive again <small>Space</small></button>
         <button class="ghost" id="garageBtn" type="button">Change ride</button>
@@ -508,7 +522,7 @@
     start: $('startScreen'), over: $('overScreen'), pause: $('pauseScreen'),
     crashWhy: $('crashWhy'), oTurns: $('oTurns'), oCoins: $('oCoins'), oSpeed: $('oSpeed'), oBest: $('oBest'),
     badges: $('badges'), overTitle: $('overTitle'), muteBtn: $('muteBtn'), pauseBtn: $('pauseBtn'),
-    rides: $('rides'), perk: $('perk'), bank: $('bank'), live: $('live'), liveList: $('liveList'), itemWrap: $('itemWrap'), itemBtn: $('itemBtn'), itemIcon: $('itemIcon'), fxChips: $('fxChips'), collected: $('collected'), boxBtn: $('boxBtn'), boxNote: $('boxNote'), boxScreen: $('boxScreen'), revealCube: $('revealCube'), revealCanvas: $('revealCanvas'), revealInfo: $('revealInfo'), revealBtns: $('revealBtns'), revealRarity: $('revealRarity'), revealName: $('revealName'), revealPerk: $('revealPerk'), revealNote: $('revealNote'), revealDrive: $('revealDrive'), revealAgain: $('revealAgain'), revealBack: $('revealBack'), icons: $('icons'), iconPerk: $('iconPerk'), iconCollected: $('iconCollected'), iconBoxBtn: $('iconBoxBtn'), iconBoxNote: $('iconBoxNote')
+    rides: $('rides'), perk: $('perk'), bank: $('bank'), live: $('live'), liveList: $('liveList'), itemWrap: $('itemWrap'), itemBtn: $('itemBtn'), itemIcon: $('itemIcon'), fxChips: $('fxChips'), modTag: $('modTag'), runExtra: $('runExtra'), collected: $('collected'), boxBtn: $('boxBtn'), boxNote: $('boxNote'), boxScreen: $('boxScreen'), revealCube: $('revealCube'), revealCanvas: $('revealCanvas'), revealInfo: $('revealInfo'), revealBtns: $('revealBtns'), revealRarity: $('revealRarity'), revealName: $('revealName'), revealPerk: $('revealPerk'), revealNote: $('revealNote'), revealDrive: $('revealDrive'), revealAgain: $('revealAgain'), revealBack: $('revealBack'), icons: $('icons'), iconPerk: $('iconPerk'), iconCollected: $('iconCollected'), iconBoxBtn: $('iconBoxBtn'), iconBoxNote: $('iconBoxNote')
   };
   const reduceMotion = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
   const store = {
@@ -521,12 +535,13 @@
   const SPEED_GAIN = 26, MAX_SPEED = 1400;
   const APPROACH = 30;
   // Each turn adds less speed the faster you already are
-  const gainAt = v => Math.max(8, SPEED_GAIN - (v - 320) * 0.03);
+  // speed added by the nth turn: tapers from about 6.5 mph to a steady 3 mph by turn 12, then stays there
+  const TAPER_TURNS = 12, LATE_GAIN = 12;
+  const gainFor = n => n < TAPER_TURNS ? SPEED_GAIN - (SPEED_GAIN - LATE_GAIN) * (n / TAPER_TURNS) : LATE_GAIN;
   const nominalSpeeds = [320];
-  const SPEED_CAP_TURNS = 10;
+  const DENSE_FROM = 10;
   function nominalSpeed(n) {
-    n = Math.min(n, SPEED_CAP_TURNS);
-    while (nominalSpeeds.length <= n) { const v = nominalSpeeds[nominalSpeeds.length - 1]; nominalSpeeds.push(Math.min(MAX_SPEED, v + gainAt(v))); }
+    while (nominalSpeeds.length <= n) { const k = nominalSpeeds.length; nominalSpeeds.push(Math.min(MAX_SPEED, nominalSpeeds[k - 1] + gainFor(k))); }
     return nominalSpeeds[n];
   }
   const DIRS = [[0, -1], [1, 0], [0, 1], [-1, 0]];
@@ -549,8 +564,10 @@
   // where a (possibly moving) obstacle is across the road right now
   const obsLat = o => o.mv ? (o.mv.a + (o.mv.b - o.mv.a) * (0.5 - 0.5 * Math.cos(o.mv.w * time + o.mv.ph))) * LANE : o.lane * LANE;
   // new hazards get announced the first time they can appear
-  const HAZARD_INTROS = { 3: 'Holes in the road', 4: 'Torpedo strikes', 6: 'Oil slicks', 8: 'Moving obstacles', 9: 'Spike strips' };
-  const biomeOf = n => n < 12 ? Math.floor(n / 3) : n < 18 ? 4 : 5;
+  const HAZARD_INTROS = { 1: 'Holes in the road', 2: 'Collapsing road', 3: 'Torpedo strikes', 4: 'Oil slicks', 5: 'Moving obstacles', 6: 'Spike strips' };
+  // the four ground zones come in a shuffled order each run; then the Skyway, then space
+  let zoneOrder = [0, 1, 2, 3];
+  const biomeOf = n => n < 12 ? zoneOrder[Math.floor(n / 3)] : n < 18 ? 4 : 5;
 
   const KINDS = {
     cone: { r: 12, name: 'a cone' }, barrel: { r: 16, name: 'a barrel' }, crate: { r: 18, name: 'a crate' },
@@ -626,7 +643,7 @@
   let targetA, carA, camA, carV = 0, camV = 0, latV = 0, crashT, crashV, spin, shake, time = 0;
   let biome = 0, prevBiome = 0, biomeT = 1, alt = 0;
   let particles = [], skids = [], scorches = [];
-  let torp = null, crashLatV = 0, runT = 0;
+  let torp = null, crashLatV = 0, runT = 0, launchT = 99, fovK = 0;
   let gag = null, nextGag = 20;
   let item = null, rolling = 0, jumpT = 0, jumpH = 0, phasesLeft = 0;
   const fx = { shield: 0, turbo: 0, magnet: 0 };
@@ -634,7 +651,10 @@
   // Same seed for everyone on the same (UTC) day, so all players share one road
   // A fresh seed every run, so every road is new
   let TRACK = 0;
-  const newTrack = () => { TRACK = (Math.random() * 0x7fffffff) | 0; };
+  const newTrack = () => {
+    TRACK = (Math.random() * 0x7fffffff) | 0;
+    zoneOrder = [0, 1, 2, 3].sort(() => Math.random() - 0.5);
+  };
   function rngFor(n) {
     let a = (Math.imul(TRACK, 2654435761) + Math.imul(n + 1, 97531)) | 0;
     return () => { a = (a + 0x6D2B79F5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
@@ -650,7 +670,7 @@
     const obs = [], coinsArr = [], boxes = [];
     let y = first ? 320 : 190 + sp * 0.1 + R() * 60;
     // past the speed cap, rows get closer together instead
-    const dense = n > SPEED_CAP_TURNS ? Math.max(0.72, 1 - (n - SPEED_CAP_TURNS) * 0.025) : 1;
+    const dense = n > DENSE_FROM ? Math.max(0.86, 1 - (n - DENSE_FROM) * 0.012) : 1;
     const gap = Math.max(175, sp * 0.66 * dense);
     const twoChance = Math.min(0.6, 0.13 + n * 0.036);
     const rowsFree = [];
@@ -659,7 +679,7 @@
       const order = [-1, 0, 1].sort(() => R() - 0.5);
       const blocked = order.slice(0, count);
       let free = order.slice(count);
-      const moving = count === 1 && n >= 8 && R() < Math.min(0.35, 0.14 + (n - 8) * 0.02);
+      const moving = count === 1 && n >= (modIs('rush') ? 2 : 5) && R() < Math.min(modIs('rush') ? 0.6 : 0.35, (modIs('rush') ? 0.35 : 0.16) + (n - 5) * 0.02);
       if (moving) {
         // slides back and forth between two neighbouring lanes; the third lane is always clear
         const ln = blocked[0], other = ln === 0 ? (R() < 0.5 ? -1 : 1) : 0;
@@ -672,15 +692,15 @@
           let kind = b.obs[Math.floor(R() * b.obs.length)];
           const q = R();
           if (!b.fly) {
-            if (n >= 3 && q < 0.13) kind = 'hole';
-            else if (n >= 6 && q < 0.24) kind = 'oil';
-            else if (n >= 9 && q < 0.33) kind = 'spikes';
+            if (n >= 1 && q < (modIs('potholes') ? 0.26 : 0.13)) kind = 'hole';
+            else if (n >= 4 && q < (modIs('potholes') ? 0.34 : 0.24)) kind = 'oil';
+            else if (n >= 6 && q < (modIs('potholes') ? 0.42 : 0.33)) kind = 'spikes';
           }
           obs.push({ s: y + (R() * 16 - 8), lane: ln, kind, r: KINDS[kind].r, rot: R() * 6 });
         }
       }
       rowsFree.push({ y, free });
-      if (n >= 1 && !boxes.length && R() < 0.08) {
+      if (n >= 1 && boxes.length < (modIs('lucky') ? 2 : 1) && R() < (modIs('lucky') ? 0.22 : 0.08)) {
         const bl = free[Math.floor(R() * free.length)];
         const bs = y + 115;
         if (bs < len - 220) boxes.push({ s: bs, lane: bl, got: false });
@@ -694,9 +714,24 @@
       coinsArr.push({ s: row.y + 60, lane: row.free[Math.floor(R() * row.free.length)], got: false });
     }
     if (nCoins && !rowsFree.length) coinsArr.push({ s: len * 0.5, lane: [-1, 0, 1][Math.floor(R() * 3)], got: false });
+    // road collapse: the outer lanes crumble away just ahead of you, leaving one or two lanes
+    let collapse = null;
+    if (n >= 2 && len > 900 && R() < (long ? 0.45 : 0.25)) {
+      const cl = 280 + R() * 260 + sp * 0.7;
+      const s0 = 280 + R() * Math.max(0, len - cl - 620);
+      if (s0 + cl < len - 320) {
+        const keep = R() < 0.55 ? [[-1], [0], [1]][Math.floor(R() * 3)] : (R() < 0.5 ? [-1, 0] : [0, 1]);
+        collapse = { s0, s1: s0 + cl, keep, gone: [-1, 0, 1].filter(l => !keep.includes(l)), tiles: [] };
+        for (const ln of collapse.gone) for (let ts = s0; ts < s0 + cl; ts += 40) collapse.tiles.push({ s: ts, lane: ln, dusted: false });
+        const inside = v => v > s0 - 190 && v < s0 + cl + 120;
+        for (const arr of [obs, coinsArr, boxes]) for (let i = arr.length - 1; i >= 0; i--) if (inside(arr[i].s)) arr.splice(i, 1);
+        const cLane = keep[Math.floor(R() * keep.length)];
+        for (let k = 1; k <= 3; k++) coinsArr.push({ s: s0 + cl * k / 4, lane: cLane, got: false });
+      }
+    }
     // torpedo strikes: where on this road the targeting starts
     const torps = [];
-    if (n >= 4) {
+    if (n >= 3 && !collapse) {
       const room = len - 150 - sp * 3.2 - 250;
       const count = long ? (room > sp * 3 ? 2 : 1) : 0;
       for (let k = 0; k < count && room > 0; k++) {
@@ -706,7 +741,7 @@
     }
     // the odd roadside billboard
     const board = n >= 1 && len > 600 && R() < 0.45 ? { s: 140 + R() * (len - 600), side: R() < 0.5 ? -1 : 1 } : null;
-    return { S, h, len, turn, obs, coins: coinsArr, boxes, torps, board, n, biome: biomeOf(n) };
+    return { S, h, len, turn, obs, coins: coinsArr, boxes, torps, board, collapse, n, biome: biomeOf(n) };
   }
 
   function nextStart(seg) {
@@ -732,16 +767,17 @@
   function reset() {
     newTrack();
     ride = rideById(rideId);
-    speed = ride.start; turns = 0; coins = 0; topSpeed = speed;
+    speed = ride.start + (modIs('tailwind') ? 60 : 0); turns = 0; coins = 0; topSpeed = speed;
     segs = []; segIdx = 0; segCount = 0;
     segs.push(genSeg({ x: 0, y: 0 }, 0, segCount++));
     ensureSegs();
     s = 40; lat = 0; lane = 0; turnQueued = false; arc = null; carV = camV = latV = 0; camOffX = camOffY = 0;
     targetA = carA = camA = 0;
     crashT = 0; crashV = 0; spin = 0; shake = 0;
-    biome = prevBiome = 0; biomeT = 1; alt = 0;
+    biome = prevBiome = biomeOf(0); biomeT = 1; alt = 0;
+    nearCount = 0; nearStreak = 0; lastNear = -9;
     particles = []; skids = []; scorches = []; torp = null; crashLatV = 0;
-    runT = 0; gag = null; nextGag = 15 + Math.random() * 15;
+    runT = 0; launchT = 0; gag = null; nextGag = 15 + Math.random() * 15;
     item = null; rolling = 0; jumpT = 0; jumpH = 0; fx.shield = fx.turbo = fx.magnet = 0;
     phasesLeft = ride.phases || 0;
     if (ride.startItem) item = ride.startItem;
@@ -917,6 +953,98 @@
       }
     }
     ctx.lineCap = 'butt';
+  }
+
+  // ---- Road conditions: most runs roll one twist ----
+  const MODS = [
+    { id: 'rush', name: 'Rush Hour', desc: 'MORE MOVING TRAFFIC' },
+    { id: 'coins', name: 'Coin Rain', desc: 'EVERY COIN COUNTS DOUBLE' },
+    { id: 'night', name: 'Night Drive', desc: 'LIGHTS OFF EVERYWHERE' },
+    { id: 'fog', name: 'Fog Bank', desc: "YOU CAN'T SEE FAR" },
+    { id: 'potholes', name: 'Pothole City', desc: 'TWICE THE HOLES' },
+    { id: 'lucky', name: 'Lucky Day', desc: 'MORE ITEM BOXES' },
+    { id: 'tailwind', name: 'Tailwind', desc: 'YOU START FASTER' }
+  ];
+  let mod = null;
+  const modIs = id => !!mod && mod.id === id;
+  const rollMod = () => Math.random() < 0.65 ? MODS[Math.floor(Math.random() * MODS.length)] : null;
+  const isNight = b => BIOMES[b].night || modIs('night');
+  const fogFar = () => modIs('fog') ? 1150 : ZFAR;
+
+  // ---- Missions: three goals at a time that pay coins ----
+  const MISSION_TYPES = {
+    coins_run: { perRun: true, goals: [5, 8, 12], reward: 15, text: g => 'Grab ' + g + ' coins in one run' },
+    turns_run: { perRun: true, max: true, goals: [8, 12, 16, 20], reward: 20, text: g => 'Reach turn ' + g },
+    items: { goals: [2, 4, 6], reward: 15, text: g => 'Use ' + g + ' items' },
+    collapse: { goals: [1, 3], reward: 20, text: g => g === 1 ? 'Survive a road collapse' : 'Survive ' + g + ' road collapses' },
+    near: { perRun: true, goals: [4, 8, 12], reward: 15, text: g => 'Get ' + g + ' close calls in one run' },
+    torpedo: { goals: [2, 4], reward: 15, text: g => 'Dodge ' + g + ' torpedoes' },
+    fly: { perRun: true, max: true, goals: [1], reward: 25, text: () => 'Take off into the Skyway' }
+  };
+  function newMission(exclude) {
+    const types = Object.keys(MISSION_TYPES).filter(t => !exclude.includes(t));
+    const type = types[Math.floor(Math.random() * types.length)];
+    const goals = MISSION_TYPES[type].goals;
+    return { type, goal: goals[Math.floor(Math.random() * goals.length)], progress: 0 };
+  }
+  let missions = store.get('missions', null);
+  if (!Array.isArray(missions) || missions.length !== 3 || missions.some(m => !MISSION_TYPES[m && m.type])) {
+    missions = [];
+    while (missions.length < 3) missions.push(newMission(missions.map(m => m.type)));
+    store.set('missions', missions);
+  }
+  let missionsDoneThisRun = [];
+  function missionsRunStart() {
+    missionsDoneThisRun = [];
+    for (const m of missions) if (MISSION_TYPES[m.type].perRun) m.progress = 0;
+  }
+  function bump(type, amount = 1, absolute = false) {
+    let changed = false;
+    missions.forEach((m, i) => {
+      if (m.type !== type) return;
+      const def = MISSION_TYPES[type];
+      m.progress = absolute || def.max ? Math.max(m.progress, amount) : m.progress + amount;
+      changed = true;
+      if (m.progress >= m.goal) {
+        bank += def.reward; store.set('bank', bank);
+        missionsDoneThisRun.push(def.text(m.goal) + ' (+' + def.reward + ')');
+        popText('MISSION DONE +' + def.reward);
+        [659, 880, 1175].forEach((f, k) => setTimeout(() => blip(f, 0.12, 'triangle', 0.06), k * 90));
+        missions[i] = newMission(missions.map(x => x.type));
+      }
+    });
+    if (changed) store.set('missions', missions);
+  }
+  function renderMissions() {
+    for (const list of document.querySelectorAll('.missions')) {
+      list.textContent = '';
+      for (const m of missions) {
+        const def = MISSION_TYPES[m.type];
+        const li = document.createElement('li');
+        const txt = document.createElement('span'); txt.className = 'm-text'; txt.textContent = def.text(m.goal);
+        const bar = document.createElement('span'); bar.className = 'm-bar';
+        const fill = document.createElement('i'); fill.style.width = Math.min(100, Math.round(m.progress / m.goal * 100)) + '%'; bar.append(fill);
+        const count = document.createElement('span'); count.className = 'm-count'; count.textContent = Math.min(m.progress, m.goal) + '/' + m.goal;
+        const rew = document.createElement('span'); rew.className = 'm-reward'; rew.textContent = '+' + def.reward;
+        li.append(txt, rew, bar, count);
+        list.append(li);
+      }
+    }
+    for (const el of document.querySelectorAll('.missions-done')) {
+      el.textContent = missionsDoneThisRun.length ? 'Completed this run: ' + missionsDoneThisRun.join(' · ') : '';
+      el.hidden = !missionsDoneThisRun.length;
+    }
+  }
+
+  // ---- Close calls: squeezing past something in the next lane ----
+  let nearCount = 0, nearStreak = 0, lastNear = -9;
+  function closeCall() {
+    nearCount++;
+    nearStreak = time - lastNear < 2.5 ? nearStreak + 1 : 1;
+    lastNear = time;
+    popText(nearStreak > 1 ? 'CLOSE CALL x' + nearStreak : 'CLOSE CALL!');
+    blip(1000 + nearStreak * 80, 0.07, 'triangle', 0.04);
+    bump('near');
   }
 
   // ---- Garage ----
@@ -1143,14 +1271,23 @@
   // ---- Actions ----
   function startGame() {
     initAudio();
+    mod = rollMod();
     reset();
+    missionsRunStart();
     state = 'play';
     ui.start.hidden = true; ui.over.hidden = true; ui.pause.hidden = true;
-    showBanner('NOW ENTERING', BIOMES[0].name);
+    ui.modTag.hidden = !mod;
+    if (mod) ui.modTag.textContent = 'ROAD: ' + mod.name.toUpperCase();
+    showBanner('NOW ENTERING', BIOMES[biome].name);
+    const runMod = mod;
+    if (runMod) setTimeout(() => { if (state === 'play' && mod === runMod) showBanner(runMod.desc, runMod.name); }, 2900);
   }
   function openGarage() {
     state = 'menu';
+    mod = null;
+    ui.modTag.hidden = true;
     reset();
+    renderMissions();
     ui.over.hidden = true; ui.start.hidden = false;
     refreshGarage();
     $('startBtn').focus();
@@ -1228,17 +1365,19 @@
     arc = makeArc([s, lat], [s, lat + sig * Math.max(12, dd * 0.55)], [E[0] - Math.max(18, reach * 0.45), L], E);
     targetA += seg.turn * Math.PI / 2;
     turns++;
-    if (ride.shieldEvery && turns % ride.shieldEvery === 0) fx.shield = 15;
-    if (turns <= SPEED_CAP_TURNS) speed = Math.min(MAX_SPEED, speed + gainAt(speed));
+    bump('turns_run', turns, true);
+    if (BIOMES[ns.biome].fly) bump('fly', 1, true);
+    if (ride.shieldEvery && turns % ride.shieldEvery === 0) fx.shield = SHIELD_T;
+    speed = Math.min(MAX_SPEED, speed + gainFor(turns));
     topSpeed = Math.max(topSpeed, speed);
     if (segIdx > 3) { segs.splice(0, segIdx - 2); segIdx = 2; }
     updateHud();
     blip(660, 0.07, 'square', 0.05);
     setTimeout(() => blip(990, 0.09, 'square', 0.05), 70);
     const zoneChange = ns.biome !== biome;
-    if (HAZARD_INTROS[turns] || turns === SPEED_CAP_TURNS) {
-      const big = HAZARD_INTROS[turns] || 'Top speed! Now it gets busier';
-      setTimeout(() => { if (state === 'play') showBanner(HAZARD_INTROS[turns] ? 'NEW HAZARD' : 'SPEED CAPPED', big); }, zoneChange ? 2900 : 0);
+    if (HAZARD_INTROS[turns]) {
+      const big = HAZARD_INTROS[turns];
+      setTimeout(() => { if (state === 'play') showBanner('NEW HAZARD', big); }, zoneChange ? 2900 : 0);
     }
     if (ns.biome !== biome) {
       prevBiome = biome; biome = ns.biome; biomeT = 0;
@@ -1297,6 +1436,9 @@
     for (const t of badges) { const b = document.createElement('span'); b.className = 'badge'; b.textContent = t; ui.badges.append(b); }
     ui.badges.hidden = badges.length === 0;
     ui.overTitle.textContent = 'Crashed in ' + BIOMES[biome].name;
+    ui.modTag.hidden = true;
+    ui.runExtra.textContent = [mod ? 'Road: ' + mod.name : '', nearCount + (nearCount === 1 ? ' close call' : ' close calls')].filter(Boolean).join(' · ');
+    renderMissions();
     ui.oTurns.textContent = turns;
     ui.oCoins.textContent = coins;
     ui.oSpeed.textContent = toMph(topSpeed);
@@ -1443,6 +1585,7 @@
       if (s + ride.h / 2 >= seg.len + W - 4) {
         crash(BIOMES[biome].fly ? 'Too late. You flew straight off the skyway.' : 'Too late. You hit the barrier.');
       }
+      if (state === 'play' && seg.collapse) updateCollapse(seg);
       seg = segs[segIdx];
       if (state === 'play') {
         const hw = ride.w / 2 - 3, hl = ride.h / 2 - 4;
@@ -1489,6 +1632,12 @@
             }
           }
         }
+        if (state === 'play' && launchT > 1.55) for (const o of seg.obs) {
+          if (o.gone || o.passed || o.kind === 'oil' || o.s + o.r > s - hl) continue;
+          o.passed = true;
+          const d = Math.abs(obsLat(o) - lat);
+          if (d < LANE * 1.2 && d >= hw + o.r - 2) closeCall();
+        }
         if (ride.autoHop && jumpT <= 0) {
           for (const o of seg.obs) {
             if (!o.gone && o.kind === 'hole' && o.s - s > 0 && o.s - s < 60 + effSpeed() * 0.12 && Math.abs(o.lane * LANE - lat) < 40) { jumpT = 0.0001; blip(500, 0.08, 'square', 0.04); break; }
@@ -1524,7 +1673,9 @@
           const pulled = (fx.magnet > 0 || ride.magnet) && c.s > s - 40 && c.s < s + 320;
           if (pulled || (Math.abs(c.s - s) < ride.h / 2 + 12 && Math.abs(c.lane * LANE - lat) < ride.w / 2 + 14)) {
             c.got = true;
-            coins += ride.coin; bank += ride.coin;
+            const gain = ride.coin * (modIs('coins') ? 2 : 1);
+            coins += gain; bank += gain;
+            bump('coins_run', coins, true);
             store.set('bank', bank);
             ui.coins.textContent = coins;
             const P = posOf(seg, c.s, c.lane * LANE);
@@ -1547,6 +1698,13 @@
         particles.push({ x: P.x, y: P.y, vx: (Math.random() - .5) * 30, vy: (Math.random() - .5) * 30, life: 0, max: .35, size: 4 + Math.random() * 3, color: Math.random() < 0.5 ? '#ff8a2a' : '#ffd166', kind: 'spark', h: 6 + alt * FLY_LIFT + jumpH });
       }
       runT += dt;
+      // race start: 3, 2, 1, GO
+      if (launchT < 2.2) {
+        const before = launchT; launchT += dt;
+        for (const [at, txt, f] of [[0.05, '3', 440], [0.55, '2', 440], [1.05, '1', 440], [1.55, 'GO!', 880]]) {
+          if (before < at && launchT >= at) { popText(txt); blip(f, at > 1.5 ? 0.35 : 0.14, 'square', 0.06); if (at > 1.5) fx.turbo = Math.max(fx.turbo, 1.1); }
+        }
+      }
       updateGag(dt);
     } else if (state === 'crash') {
       crashT += dt;
@@ -1560,7 +1718,10 @@
     // Springs ease in and out, so turns start and finish softly
     if (state !== 'crash' && !arc) { carV += ((targetA - carA) * 36 - 12 * carV) * dt; carA += carV * dt; }
     else carV = 0;
-    camV += ((targetA - camA) * 13 - 7.2 * camV) * dt; camA += camV * dt;
+    const camTarget = state === 'crash' ? targetA : carA;
+    camV += ((camTarget - camA) * 22 - 9.4 * camV) * dt; camA += camV * dt;
+    const fovGoal = state === 'play' ? Math.min(1, Math.max(0, (effSpeed() - 300) / 700)) : 0;
+    fovK += (fovGoal - fovK) * Math.min(1, dt * 2);
     {
       // the camera drifts only part-way with lane changes
       const rv = dirOf(segs[segIdx].h + 1), q = Math.min(1, dt * 4);
@@ -1596,8 +1757,10 @@
     jump: { label: 'JUMP', color: '#5be37d', svg: '<svg viewBox="0 0 32 32" aria-hidden="true"><path d="M16 4l9 10h-6v8h-6v-8H7z" fill="#5be37d" stroke="#1d5c2e" stroke-width="1.5" stroke-linejoin="round"/><path d="M9 27h14" stroke="#f6f1e4" stroke-width="3" stroke-linecap="round"/></svg>' }
   };
   const ITEM_ODDS = [['shield', 0.3], ['turbo', 0.25], ['magnet', 0.25], ['jump', 0.2]];
-  const JUMP_T = 0.9, TURBO_MULT = 1.35;
-  const effSpeed = () => speed * (fx.turbo > 0 ? TURBO_MULT : 1);
+  const JUMP_T = 0.9, TURBO_MULT = 1.35, SHIELD_T = 7.5;
+  // standing still during the countdown, then a quick launch
+  const launchMul = () => launchT < 1.55 ? 0 : Math.min(1, 0.35 + (launchT - 1.55) * 1.6);
+  const effSpeed = () => speed * (fx.turbo > 0 ? TURBO_MULT : 1) * (state === 'play' ? launchMul() : 1);
 
   function pickItem() {
     let r = Math.random();
@@ -1607,11 +1770,12 @@
 
   function useItem() {
     if (state !== 'play' || !item || rolling > 0) return;
+    bump('items');
     const it = item;
     item = null;
-    if (it === 'shield') { fx.shield = 15; blip(520, 0.2, 'triangle', 0.06); }
-    else if (it === 'turbo') { fx.turbo = 4; [440, 660, 880].forEach((f, i) => setTimeout(() => blip(f, 0.08, 'sawtooth', 0.05), i * 50)); }
-    else if (it === 'magnet') { fx.magnet = 10; blip(300, 0.25, 'sine', 0.08); }
+    if (it === 'shield') { fx.shield = SHIELD_T; blip(520, 0.2, 'triangle', 0.06); }
+    else if (it === 'turbo') { fx.turbo = 2; [440, 660, 880].forEach((f, i) => setTimeout(() => blip(f, 0.08, 'sawtooth', 0.05), i * 50)); }
+    else if (it === 'magnet') { fx.magnet = 5; blip(300, 0.25, 'sine', 0.08); }
     else if (it === 'jump') { if (jumpT <= 0) jumpT = 0.0001; blip(400, 0.12, 'square', 0.05); setTimeout(() => blip(800, 0.1, 'square', 0.05), 80); }
     popText(ITEMS[it].label + '!');
     renderItem(true);
@@ -1744,6 +1908,72 @@
   for (const b of document.querySelectorAll('.board-tab')) b.addEventListener('click', () => setBoardMode(b.dataset.mode));
   setTimeout(() => setBoardMode(boardMode), 0);
 
+  // ---- Road collapse ----
+  // Each crumbling tile lets go COLLAPSE_LEAD seconds before you'd reach it, so you watch the road fall away ahead.
+  const COLLAPSE_LEAD = 1.3;
+  function tileT(g, tl) {
+    const gi = segs.indexOf(g);
+    if (gi < segIdx) return 99;
+    if (gi > segIdx) return -99;
+    const v = Math.max(120, effSpeed() || speed);
+    return (s - (tl.s - v * COLLAPSE_LEAD)) / v;
+  }
+  function updateCollapse(seg) {
+    const C = seg.collapse;
+    for (const tl of C.tiles) {
+      if (tl.dusted || tileT(seg, tl) < 0) continue;
+      tl.dusted = true;
+      if (!C.rumbled) { C.rumbled = true; blip(70, 0.6, 'sawtooth', 0.07); popText('HOLD YOUR LANE!'); }
+      const P = posOf(seg, tl.s + 20, tl.lane * LANE);
+      for (let i = 0; i < 3; i++) particles.push({ x: P.x + (Math.random() - .5) * 40, y: P.y + (Math.random() - .5) * 30, vx: (Math.random() - .5) * 60, vy: (Math.random() - .5) * 60, life: 0, max: 0.9, size: 4 + Math.random() * 5, color: '#6b6a66', kind: 'debris', rot: Math.random() * 6, h: 2, vh: 60 + Math.random() * 80 });
+    }
+    if (!C.survived && s > C.s1 && state === 'play') { C.survived = true; bump('collapse'); }
+    if (arc || jumpH > 10 || ride.hover || s < C.s0 + 10 || s > C.s1 - 10) return;
+    const lo = Math.min(...C.keep) * LANE - LANE / 2, hi = Math.max(...C.keep) * LANE + LANE / 2;
+    if (lat < lo - 8 || lat > hi + 8) crash(BIOMES[biome].fly ? 'You fell through a gap in the skyway.' : 'The road fell away beneath you.');
+  }
+  function drawCollapses(list) {
+    for (const g of list) {
+      const C = g.collapse;
+      if (!C) continue;
+      const Bc = BIOMES[g.biome], pitCol = Bc.fly ? Bc.ground : '#07080c';
+      // red-and-white warning stripes painted on the lanes that are about to go
+      for (const ln of C.gone) for (let k = 0; k < 5; k++) {
+        const ws = C.s0 - 200 + k * 40;
+        fillPoly(segQuad(g, ln * LANE - 26, ws, ln * LANE + 26, ws + 18), k % 2 ? 'rgba(246,241,228,0.8)' : 'rgba(228,87,46,0.85)');
+      }
+      for (const tl of C.tiles) {
+        const tt = tileT(g, tl);
+        if (tt < -0.9) continue;
+        const x0 = tl.lane * LANE - LANE / 2, x1 = x0 + LANE;
+        if (tt < 0) {
+          // cracks spread first
+          const k = 1 + tt / 0.9;
+          fillPoly(segQuad(g, x0 + 6, tl.s + 12, x0 + 6 + (LANE - 12) * k, tl.s + 14.5), 'rgba(0,0,0,0.6)');
+          fillPoly(segQuad(g, x1 - 6 - (LANE - 20) * k, tl.s + 27, x1 - 6, tl.s + 29), 'rgba(0,0,0,0.5)');
+          continue;
+        }
+        const pit = segQuad(g, x0, tl.s, x1, tl.s + 40, 0.2);
+        fillPoly(pit, pitCol);
+        const fall = 0.5 * 950 * tt * tt;
+        ctx.save();
+        if (poly3(pit)) ctx.clip();
+        // side walls of the hole
+        for (const bx of [x0, x1]) {
+          const a = posOf(g, tl.s, bx), b = posOf(g, tl.s + 40, bx);
+          fillPoly([[a.x, a.y, 0], [b.x, b.y, 0], [b.x, b.y, -140], [a.x, a.y, -140]], Bc.fly ? 'rgba(40,70,120,0.55)' : '#2a2520');
+        }
+        if (fall < 800) {
+          const hh = -fall;
+          fillPoly(segQuad(g, x0 + 1, tl.s + 1, x1 - 1, tl.s + 39, hh), Bc.asphalt);
+          const a = posOf(g, tl.s + 39, x0 + 1), b = posOf(g, tl.s + 39, x1 - 1);
+          fillPoly([[a.x, a.y, hh], [b.x, b.y, hh], [b.x, b.y, hh - 12], [a.x, a.y, hh - 12]], 'rgba(0,0,0,0.45)');
+        }
+        ctx.restore();
+      }
+    }
+  }
+
   // ---- Roadside billboards ----
   function billboardItems(list) {
     for (const g of list) {
@@ -1801,7 +2031,7 @@
       if (Math.abs(lat - tp.lane * LANE) < 44 && jumpH <= 10 && !ride.hover) {
         if (fx.shield > 0 || fx.turbo > 0) { if (fx.turbo <= 0) fx.shield = 0; popText('SHIELD!'); }
         else crash('A torpedo got you.');
-      }
+      } else bump('torpedo');
     }
   }
 
@@ -2049,7 +2279,7 @@
     const yCar = vh * 0.8;
     const k = Math.min(vw * 0.62, vh * 0.55) / W;
     cam.H = (yCar - cam.hy) / k;
-    cam.D = cam.H * 1.1;
+    cam.D = cam.H * 1.1 * (1 - 0.14 * fovK);
     cam.F = k * cam.D;
     cam.a = camA;
     cam.fx = Math.sin(camA); cam.fy = -Math.cos(camA);
@@ -2129,7 +2359,7 @@
 
   const items = [];
   function add(z, fn, a = 1) { items.push({ z, fn, a }); }
-  const fogAlpha = z => Math.max(0, Math.min(1, (ZFAR - z) / 600));
+  const fogAlpha = z => Math.max(0, Math.min(1, (fogFar() - z) / (modIs('fog') ? 420 : 600)));
 
   // ---- Sky and horizon ----
   const SKIES = [
@@ -2440,24 +2670,6 @@
         if (p.z < NEAR || p.z > ZFAR) continue;
         const col = B.barrier[k % 2];
         add(p.z, () => fillPoly([[a.x, a.y, 0], [b2.x, b2.y, 0], [b2.x, b2.y, WH], [a.x, a.y, WH]], col));
-      }
-      // warning sign
-      if (g.len >= 360) {
-        const sp = posOf(g, g.len - 300, W / 2 + 40), p = proj(sp.x, sp.y, 0);
-        if (inView(p, 60)) add(p.z, () => {
-          billboard(sp.x, sp.y, 0);
-          ctx.fillStyle = '#8a8a8a'; ctx.fillRect(-2, -48, 4, 48);
-          ctx.translate(0, -62); ctx.scale(1.3, 1.3);
-          ctx.save(); ctx.rotate(Math.PI / 4);
-          ctx.fillStyle = '#15171a'; ctx.fillRect(-13, -13, 26, 26);
-          ctx.fillStyle = '#f2b632'; ctx.fillRect(-11, -11, 22, 22);
-          ctx.restore();
-          const t = g.turn;
-          ctx.strokeStyle = '#15171a'; ctx.lineWidth = 3; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-          ctx.beginPath(); ctx.moveTo(-t * 4, 8); ctx.lineTo(-t * 4, -1); ctx.lineTo(t * 4, -1); ctx.stroke();
-          ctx.fillStyle = '#15171a'; ctx.beginPath(); ctx.moveTo(t * 10, -1); ctx.lineTo(t * 4, -6); ctx.lineTo(t * 4, 4); ctx.closePath(); ctx.fill();
-          ctx.restore();
-        });
       }
       for (const c of g.coins) {
         if (c.got) continue;
@@ -2968,6 +3180,7 @@
 
     const list = segs.slice(Math.max(0, segIdx - 2));
     drawRoadsFlat(list);
+    drawCollapses(list);
 
     ctx.fillStyle = '#1a1b1f';
     for (const sk of skids) {
@@ -2993,12 +3206,14 @@
     ctx.globalAlpha = 1;
 
     const tilt = state === 'play' ? Math.max(-0.18, Math.min(0.18, latV * 0.0012)) : 0;
-    if (BIOMES[biome].night && state !== 'over') drawHeadlights(P, carA + tilt);
+    if (isNight(biome) && state !== 'over') drawHeadlights(P, carA + tilt);
 
     // haze at the horizon hides where the world ends
-    const fog = ctx.createLinearGradient(0, cam.hy, 0, cam.hy + (vh - cam.hy) * 0.16);
-    fog.addColorStop(0, SKIES[biome].bot); fog.addColorStop(1, 'rgba(0,0,0,0)');
-    ctx.globalAlpha = 0.95; ctx.fillStyle = fog; ctx.fillRect(-20, cam.hy - 1, vw + 40, (vh - cam.hy) * 0.16 + 1);
+    const fogH = (vh - cam.hy) * (modIs('fog') ? 0.42 : 0.16);
+    const fog = ctx.createLinearGradient(0, cam.hy, 0, cam.hy + fogH);
+    fog.addColorStop(0, modIs('fog') ? '#c9ced4' : SKIES[biome].bot); fog.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.globalAlpha = 0.95; ctx.fillStyle = fog; ctx.fillRect(-20, cam.hy - 1, vw + 40, fogH + 1);
+    if (modIs('fog')) { ctx.fillStyle = 'rgba(201,206,212,0.9)'; ctx.fillRect(-20, -20, vw + 40, cam.hy + 20); }
     ctx.globalAlpha = 1;
 
     items.length = 0;
@@ -3015,10 +3230,20 @@
     ctx.globalAlpha = 1;
 
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    if (modIs('night') && !BIOMES[biome].night) {
+      // Night Drive: darken the world, keep a pool of headlight around the car
+      ctx.fillStyle = 'rgba(4,8,22,0.55)'; ctx.fillRect(0, 0, vw, vh);
+      const cp = proj(P.x, P.y, 0);
+      if (cp.z > NEAR) {
+        const lg = ctx.createRadialGradient(cp.sx, cp.sy - 90 * cp.k, 10, cp.sx, cp.sy - 90 * cp.k, 260 * cp.k);
+        lg.addColorStop(0, 'rgba(255,236,190,0.28)'); lg.addColorStop(1, 'rgba(255,236,190,0)');
+        ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.fillStyle = lg; ctx.fillRect(0, 0, vw, vh); ctx.restore();
+      }
+    }
     drawWeather();
 
     drawGag();
-    const night = BIOMES[biome].night ? biomeT : BIOMES[prevBiome].night ? 1 - biomeT : 0;
+    const night = isNight(biome) ? (modIs('night') ? 1 : biomeT) : isNight(prevBiome) ? 1 - biomeT : 0;
     const vg = ctx.createRadialGradient(vw / 2, vh / 2, Math.min(vw, vh) * 0.3, vw / 2, vh / 2, Math.hypot(vw, vh) * 0.62);
     vg.addColorStop(0, 'rgba(0,0,0,0)');
     vg.addColorStop(1, `rgba(8,12,20,${0.3 + night * 0.3})`);
@@ -3042,6 +3267,7 @@
   }
   reset();
   buildGarage();
+  renderMissions();
   requestAnimationFrame(frame);
 })();
 </script>
