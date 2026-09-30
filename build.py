@@ -34,13 +34,13 @@ def main():
         <input id="playerName" type="text" maxlength="16" autocomplete="off" spellcheck="false" placeholder="Shown on the leaderboard">
       </label>
       <button class="go" id="startBtn"''')
-    page = swap(page, "  window.addEventListener('keydown', e => {\n    const k = e.key;",
+    page = swap(page, "  window.addEventListener('keydown', e => {\n    if (reveal)",
                 "  window.addEventListener('keydown', e => {\n"
                 "    if (e.target && e.target.tagName === 'INPUT') {\n"
                 "      if (e.key === 'Enter') { e.preventDefault(); e.target.blur(); if (state === 'menu') startGame(); }\n"
                 "      return;\n"
                 "    }\n"
-                "    const k = e.key;")
+                "    if (reveal)")
     page = swap(page, "  @media (max-width: 440px) {", """  .name-field { display: grid; gap: 7px; }
   .name-field span { font-size: 12px; font-weight: 800; letter-spacing: .16em; }
   .name-field input {

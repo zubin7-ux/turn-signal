@@ -143,8 +143,8 @@
       const fly = BIOMES[g.biome].fly ? 1 : 0;
       const label = (cleanName(q.name) || 'Driver') + ' · ' + Math.max(0, Math.floor(Number(q.turns) || 0));
       add(p.z, () => {
-        renderVehicle(ctx, id, fly, time, false, h => place(ctx, P.x, P.y, h, g.h * Math.PI / 2), fly * 55, stepFor(p.k) * 1.2);
-        const t = proj(P.x, P.y, fly * 55 + 46);
+        renderVehicle(ctx, id, fly, time, false, h => place(ctx, P.x, P.y, h, g.h * Math.PI / 2), fly * FLY_LIFT, stepFor(p.k) * 1.2);
+        const t = proj(P.x, P.y, fly * FLY_LIFT + 46);
         ctx.font = '700 12px Overpass, system-ui, sans-serif';
         const w = ctx.measureText(label).width + 14;
         ctx.fillStyle = 'rgba(15,20,30,0.75)'; rr(ctx, t.sx - w / 2, t.sy - 19, w, 19, 9.5); ctx.fill();
