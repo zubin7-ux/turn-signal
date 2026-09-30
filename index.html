@@ -485,12 +485,12 @@
   const toMph = v => Math.round(v / 4);
 
   const BIOMES = [
-    { name: 'Green Valley', ground: '#6f9a4e', shoulder: '#c9c2ae', asphalt: '#34373e', line: 'rgba(246,241,228,0.85)', stop: 'rgba(242,182,50,0.85)', barrier: ['#f2b632', '#15171a'], obs: ['cone', 'barrel', 'crate'], deco: 'valley' },
-    { name: 'Dust Bowl', ground: '#d8b474', shoulder: '#ead6a6', asphalt: '#443e38', line: 'rgba(255,244,214,0.85)', stop: 'rgba(255,244,214,0.85)', barrier: ['#e4572e', '#f6f1e4'], obs: ['rock', 'tumbleweed', 'barrel'], deco: 'desert' },
-    { name: 'Frost Pass', ground: '#e3eaf0', shoulder: '#a9b5c1', asphalt: '#3b424c', line: 'rgba(255,255,255,0.9)', stop: 'rgba(255,255,255,0.9)', barrier: ['#d8433b', '#f6f1e4'], obs: ['snowman', 'ice', 'cone'], deco: 'snow' },
-    { name: 'Night City', ground: '#262b39', shoulder: '#5a6177', asphalt: '#1c1f27', line: 'rgba(255,226,140,0.85)', stop: 'rgba(255,226,140,0.85)', barrier: ['#f2b632', '#15171a'], obs: ['cone', 'barrel', 'crate'], deco: 'city', night: true },
-    { name: 'Skyway', ground: '#86c5ec', shoulder: '#e8fbff', asphalt: '#3f74b8', line: 'rgba(255,255,255,0.9)', stop: 'rgba(111,231,255,0.95)', barrier: ['#6fe7ff', '#1c3d6e'], obs: ['bird', 'balloon', 'drone'], deco: 'sky', fly: true },
-    { name: 'Outer Orbit', ground: '#0e0b22', shoulder: '#b44cff', asphalt: '#241541', line: 'rgba(127,255,255,0.9)', stop: 'rgba(210,123,255,0.95)', barrier: ['#d27bff', '#140a28'], obs: ['asteroid', 'satellite', 'asteroid'], deco: 'space', fly: true, night: true }
+    { name: 'Green Valley', ground: '#6f9a4e', shoulder: '#c9c2ae', asphalt: '#34373e', line: 'rgba(246,241,228,0.85)', stop: 'rgba(242,182,50,0.85)', barrier: ['#f2b632', '#15171a'], obs: ['cone', 'barrel', 'crate', 'hay', 'sawhorse', 'cow'], deco: 'valley' },
+    { name: 'Dust Bowl', ground: '#d8b474', shoulder: '#ead6a6', asphalt: '#443e38', line: 'rgba(255,244,214,0.85)', stop: 'rgba(255,244,214,0.85)', barrier: ['#e4572e', '#f6f1e4'], obs: ['rock', 'tumbleweed', 'barrel', 'cactus', 'skull'], deco: 'desert' },
+    { name: 'Frost Pass', ground: '#e3eaf0', shoulder: '#a9b5c1', asphalt: '#3b424c', line: 'rgba(255,255,255,0.9)', stop: 'rgba(255,255,255,0.9)', barrier: ['#d8433b', '#f6f1e4'], obs: ['snowman', 'ice', 'cone', 'penguin'], deco: 'snow' },
+    { name: 'Night City', ground: '#262b39', shoulder: '#5a6177', asphalt: '#1c1f27', line: 'rgba(255,226,140,0.85)', stop: 'rgba(255,226,140,0.85)', barrier: ['#f2b632', '#15171a'], obs: ['cone', 'barrel', 'npccar', 'trashcan', 'sawhorse', 'crate'], deco: 'city', night: true },
+    { name: 'Skyway', ground: '#86c5ec', shoulder: '#e8fbff', asphalt: '#3f74b8', line: 'rgba(255,255,255,0.9)', stop: 'rgba(111,231,255,0.95)', barrier: ['#6fe7ff', '#1c3d6e'], obs: ['bird', 'balloon', 'drone', 'kite'], deco: 'sky', fly: true },
+    { name: 'Outer Orbit', ground: '#0e0b22', shoulder: '#b44cff', asphalt: '#241541', line: 'rgba(127,255,255,0.9)', stop: 'rgba(210,123,255,0.95)', barrier: ['#d27bff', '#140a28'], obs: ['asteroid', 'satellite', 'asteroid', 'ufo'], deco: 'space', fly: true, night: true }
   ];
   const hexRgb = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
   BIOMES.forEach(b => { b.rgb = hexRgb(b.ground); });
@@ -503,7 +503,11 @@
     snowman: { r: 16, name: 'a snowman' }, ice: { r: 17, name: 'a block of ice' },
     bird: { r: 12, name: 'a bird' }, balloon: { r: 19, name: 'a hot-air balloon' }, drone: { r: 15, name: 'a drone' },
     asteroid: { r: 18, name: 'an asteroid' }, satellite: { r: 16, name: 'a satellite' },
-    hole: { r: 20, name: 'a hole' }
+    hole: { r: 20, name: 'a hole' },
+    hay: { r: 17, name: 'a hay bale' }, sawhorse: { r: 20, name: 'a road barrier' }, cow: { r: 20, name: 'a cow' },
+    cactus: { r: 14, name: 'a cactus' }, skull: { r: 13, name: 'a cow skull' }, penguin: { r: 13, name: 'a penguin' },
+    npccar: { r: 20, name: 'a parked car' }, trashcan: { r: 14, name: 'a trash can' }, kite: { r: 16, name: 'a kite' },
+    ufo: { r: 20, name: 'a UFO' }
   };
 
   // ---- Vehicles: 5 body styles, 15 rides, 5 rarities ----
@@ -535,7 +539,7 @@
     V('police', 'Cruiser', 'police', 'rare', { color: '#f4f4f0', hood: '#15171a', roof: '#f4f4f0', lights: true }, { lane: 25, torpImmune: true, perk: 'Fastest lane changes, and its radar jams torpedoes so they never lock on.' }),
     V('goldcab', 'Gold Cab', 'taxi', 'rare', { color: '#f5c542', roof: '#e0ad2a', sign: true, checker: true }, { lane: 12, coin: 3, perk: 'Every coin counts triple.' }),
     V('bouncer', 'Bouncer', 'roadster', 'rare', { color: '#ff7ac8', roof: '#e25fae', stripe: '#fff0f8' }, { lane: 14, autoHop: true, perk: 'Hops over holes all by itself.' }),
-    V('monster', 'Monster', 'monster', 'epic', { color: '#7a4fe0', roof: '#6a42c8' }, { lane: 11, smash: ['cone', 'tumbleweed', 'crate', 'barrel', 'snowman', 'ice', 'rock'], perk: 'Crushes cones, crates, barrels, rocks, ice, snowmen and tumbleweeds. Each one slows it a little.' }),
+    V('monster', 'Monster', 'monster', 'epic', { color: '#7a4fe0', roof: '#6a42c8' }, { lane: 11, smash: ['cone', 'tumbleweed', 'crate', 'barrel', 'snowman', 'ice', 'rock', 'hay', 'sawhorse', 'trashcan', 'cactus', 'skull'], perk: 'Crushes almost anything small in the road: cones, crates, barrels, hay, trash cans, rocks and more. Each one slows it a little.' }),
     V('phantom', 'Phantom', 'roadster', 'epic', { color: '#2a2346', roof: '#1d1830', stripe: '#b36bff' }, { lane: 15, phases: 3, perk: 'Phases through the first 3 things it hits each run.' }),
     V('magneto', 'Magneto', 'police', 'epic', { color: '#d64fd6', hood: '#3a1f4a', roof: '#d64fd6' }, { lane: 16, magnet: true, coin: 2, perk: 'A coin magnet that never turns off, plus double coins.' }),
     V('golden', 'Golden Legend', 'roadster', 'legendary', { color: '#f5c542', roof: '#d9a92e', stripe: '#fff4c2' }, { lane: 16, coin: 3, shieldEvery: 5, startItem: 'shield', perk: 'Triple coins, and a fresh Shield every 5 turns.' }),
@@ -554,7 +558,9 @@
   owned = [...new Set(['roadster', ...owned.filter(id => RIDES.some(r => r.id === id))])];
   const owns = id => owned.includes(id);
   let rideId = store.get('ride', 'roadster');
-  const rideById = id => RIDES.find(r => r.id === id) || RIDES[0];
+  // Parked cars in Night City reuse the vehicle drawings in plain colors
+  const NPCS = ['#5b6b8c', '#8c3b3b', '#c9c9c4', '#3f6e55'].map((color, i) => V('npc' + i, 'Parked car', i % 2 ? 'taxi' : 'roadster', 'npc', { color, roof: color }, {}));
+  const rideById = id => RIDES.find(r => r.id === id) || NPCS.find(r => r.id === id) || RIDES[0];
   if (!owns(rideId)) rideId = 'roadster';
   let ride = rideById(rideId);
 
@@ -600,7 +606,7 @@
         obs.push({ s: y + (R() * 16 - 8), lane: ln, kind, r: KINDS[kind].r, rot: R() * 6 });
       }
       rowsFree.push({ y, free });
-      if (n >= 1 && R() < 0.2) {
+      if (n >= 1 && !boxes.length && R() < 0.08) {
         const bl = free[Math.floor(R() * free.length)];
         const bs = y + 115;
         if (bs < len - 220) boxes.push({ s: bs, lane: bl, got: false });
@@ -608,11 +614,12 @@
       y += gap + R() * 121;
     }
     // 1-2 coins per road piece, tucked just past a row of obstacles in an open lane
-    const nCoins = first ? 1 : 1 + (R() < 0.5 ? 1 : 0);
+    // about one coin per road piece (so about one per turn): sometimes none, sometimes two
+    const cr = R(), nCoins = cr < 0.08 ? 0 : cr < 0.7 ? 1 : 2;
     for (const row of rowsFree.slice().sort(() => R() - 0.5).slice(0, nCoins)) {
       coinsArr.push({ s: row.y + 60, lane: row.free[Math.floor(R() * row.free.length)], got: false });
     }
-    if (!rowsFree.length) coinsArr.push({ s: len * 0.5, lane: [-1, 0, 1][Math.floor(R() * 3)], got: false });
+    if (nCoins && !rowsFree.length) coinsArr.push({ s: len * 0.5, lane: [-1, 0, 1][Math.floor(R() * 3)], got: false });
     // torpedo strikes: where on this road the targeting starts
     const torps = [];
     if (n >= 4) {
@@ -1194,13 +1201,7 @@
         const P = posOf(seg, s - ride.h / 2 - 6, lat + (Math.random() - 0.5) * ride.w * 0.6);
         particles.push({ x: P.x, y: P.y, vx: (Math.random() - .5) * 30, vy: (Math.random() - .5) * 30, life: 0, max: .35, size: 4 + Math.random() * 3, color: Math.random() < 0.5 ? '#ff8a2a' : '#ffd166', kind: 'spark', h: 6 + alt * FLY_LIFT + jumpH });
       }
-      // launch dust for the first couple of seconds only
       runT += dt;
-      if (runT < 2.2 && Math.random() < dt * 40) {
-        const P = posOf(seg, s - ride.h / 2 - 4, lat + (Math.random() - 0.5) * ride.w);
-        particles.push({ x: P.x, y: P.y, vx: (Math.random() - .5) * 40, vy: (Math.random() - .5) * 40, life: 0, max: .7,
-          size: 5 + Math.random() * 4, kind: 'puff', h: 5 });
-      }
       updateGag(dt);
     } else if (state === 'crash') {
       crashT += dt;
@@ -2186,6 +2187,111 @@
         place(ctx, x, y, 30 + r * 0.6, base + time * 0.8 + o.rot); ctx.fillStyle = '#433c4c'; circle(ctx, -4, -3, 4); circle(ctx, 5, 4, 3); ctx.restore();
         break;
       }
+      case 'hay':
+        shadowFlat(x + 3, y + 2, r * 1.2, 0.25);
+        stack(x, y, rot * 0.3 + base, 0, 22, h => { rr(ctx, -r, -r * 0.8, r * 2, r * 1.6, 7); ctx.fillStyle = '#d9b44a'; ctx.fill(); shade(0.28 * (1 - h / 22)); });
+        place(ctx, x, y, 23, rot * 0.3 + base);
+        rr(ctx, -r, -r * 0.8, r * 2, r * 1.6, 7); ctx.fillStyle = '#ecc95e'; ctx.fill();
+        ctx.strokeStyle = '#b8912e'; ctx.lineWidth = 2;
+        for (let k = -2; k <= 2; k++) { ctx.beginPath(); ctx.moveTo(-r + 3, k * 5); ctx.lineTo(r - 3, k * 5 + 2); ctx.stroke(); }
+        ctx.restore();
+        break;
+      case 'sawhorse':
+        shadowFlat(x + 3, y + 2, r, 0.2);
+        billboard(x, y, 0);
+        ctx.strokeStyle = '#3a3d44'; ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.moveTo(-18, 0); ctx.lineTo(-12, -24); ctx.lineTo(-6, 0); ctx.moveTo(6, 0); ctx.lineTo(12, -24); ctx.lineTo(18, 0); ctx.stroke();
+        ctx.fillStyle = '#f6f1e4'; ctx.fillRect(-26, -30, 52, 11);
+        ctx.save(); ctx.beginPath(); ctx.rect(-26, -30, 52, 11); ctx.clip();
+        ctx.fillStyle = '#f07b2a';
+        for (let k = -40; k < 40; k += 12) { ctx.beginPath(); ctx.moveTo(k, -19); ctx.lineTo(k + 6, -19); ctx.lineTo(k + 17, -30); ctx.lineTo(k + 11, -30); ctx.closePath(); ctx.fill(); }
+        ctx.restore();
+        if (Math.sin(time * 6 + o.rot) > 0) { ctx.fillStyle = '#ffcf40'; circle(ctx, -20, -33, 3.5); circle(ctx, 20, -33, 3.5); }
+        ctx.restore();
+        break;
+      case 'cow': {
+        shadowFlat(x + 3, y + 2, r * 1.3, 0.22);
+        billboard(x, y, 0);
+        const sd = o.rot > 3 ? 1 : -1;
+        ctx.scale(sd, 1);
+        ctx.fillStyle = '#2a2a2a'; for (const lx of [-16, -10, 10, 16]) ctx.fillRect(lx - 2, -14, 4, 14);
+        ctx.fillStyle = '#f4f1ea'; rr(ctx, -22, -34, 44, 22, 9); ctx.fill();
+        ctx.fillStyle = '#2a2a2a'; circle(ctx, -8, -27, 6); circle(ctx, 9, -22, 5); circle(ctx, 14, -30, 3.5);
+        ctx.fillStyle = '#f4f1ea'; rr(ctx, -34, -40, 15, 15, 5); ctx.fill();
+        ctx.fillStyle = '#e8a4a4'; rr(ctx, -37, -32, 9, 7, 3); ctx.fill();
+        ctx.fillStyle = '#2a2a2a'; circle(ctx, -29, -35, 1.6);
+        ctx.strokeStyle = '#d9cfbf'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(-30, -40); ctx.lineTo(-33, -45); ctx.moveTo(-24, -40); ctx.lineTo(-21, -45); ctx.stroke();
+        ctx.strokeStyle = '#2a2a2a'; ctx.beginPath(); ctx.moveTo(22, -30); ctx.quadraticCurveTo(28, -24 + Math.sin(time * 4) * 3, 25, -16); ctx.stroke();
+        ctx.restore();
+        break;
+      }
+      case 'cactus':
+        shadowFlat(x + 4, y + 2, r, 0.22);
+        billboard(x, y, 0);
+        ctx.fillStyle = '#4c8a4a';
+        rr(ctx, -6, -46, 12, 46, 6); ctx.fill();
+        rr(ctx, -17, -32, 7, 18, 3.5); ctx.fill(); ctx.fillRect(-17, -18, 14, 6);
+        rr(ctx, 10, -38, 7, 18, 3.5); ctx.fill(); ctx.fillRect(3, -24, 14, 6);
+        ctx.fillStyle = '#6cae5f'; ctx.fillRect(-2, -42, 3, 38);
+        ctx.fillStyle = '#f07b9a'; circle(ctx, 0, -46, 3);
+        ctx.restore();
+        break;
+      case 'skull':
+        shadowFlat(x + 2, y + 2, r, 0.2);
+        stack(x, y, base + o.rot * 0.2, 0, 6, () => { ctx.fillStyle = '#d9d2c3'; rr(ctx, -7, -10, 14, 20, 6); ctx.fill(); });
+        place(ctx, x, y, 7, base + o.rot * 0.2);
+        ctx.fillStyle = '#f2ede2'; rr(ctx, -7, -10, 14, 20, 6); ctx.fill();
+        ctx.fillStyle = '#3a3128'; circle(ctx, -3, -3, 2.2); circle(ctx, 3, -3, 2.2);
+        ctx.strokeStyle = '#f2ede2'; ctx.lineWidth = 3.5; ctx.lineCap = 'round';
+        ctx.beginPath(); ctx.moveTo(-6, -8); ctx.quadraticCurveTo(-16, -10, -18, -18); ctx.moveTo(6, -8); ctx.quadraticCurveTo(16, -10, 18, -18); ctx.stroke();
+        ctx.lineCap = 'butt';
+        ctx.restore();
+        break;
+      case 'penguin':
+        shadowFlat(x + 2, y + 2, r, 0.2);
+        billboard(x, y, 0);
+        ctx.rotate(Math.sin(time * 7 + o.rot) * 0.12);
+        ctx.fillStyle = '#f07b2a'; ctx.fillRect(-8, -3, 6, 3); ctx.fillRect(2, -3, 6, 3);
+        ctx.fillStyle = '#1b1c20'; ctx.beginPath(); ctx.ellipse(0, -18, 11, 16, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#f6f6f2'; ctx.beginPath(); ctx.ellipse(0, -15, 7, 12, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#1b1c20'; circle(ctx, 0, -33, 8);
+        ctx.fillStyle = '#fff'; circle(ctx, -3, -34, 2); circle(ctx, 3, -34, 2);
+        ctx.fillStyle = '#f2b632'; ctx.beginPath(); ctx.moveTo(-2.5, -30); ctx.lineTo(2.5, -30); ctx.lineTo(0, -26); ctx.closePath(); ctx.fill();
+        ctx.fillStyle = '#1b1c20'; ctx.beginPath(); ctx.ellipse(-11, -17, 3, 9, 0.3, 0, Math.PI * 2); ctx.fill(); ctx.beginPath(); ctx.ellipse(11, -17, 3, 9, -0.3, 0, Math.PI * 2); ctx.fill();
+        ctx.restore();
+        break;
+      case 'npccar': {
+        const npc = 'npc' + (Math.floor(o.rot * 10) % 4);
+        const k = proj(x, y, 0).k;
+        renderVehicle(ctx, npc, 0, time, false, h => place(ctx, x, y, h, base), 0, stepFor(k));
+        break;
+      }
+      case 'trashcan':
+        shadowFlat(x + 3, y + 2, r * 1.1, 0.25);
+        stack(x, y, base, 0, 26, h => { ctx.fillStyle = (Math.floor(h / 5) % 2) ? '#6b7280' : '#7c8492'; circle(ctx, 0, 0, r * (0.9 + h / 26 * 0.1)); shade(0.3 * (1 - h / 26)); });
+        place(ctx, x, y, 27, base);
+        ctx.fillStyle = '#4b5261'; circle(ctx, 0, 0, r * 1.05);
+        ctx.fillStyle = '#9aa2b0'; ctx.fillRect(-5, -2, 10, 4);
+        ctx.restore();
+        break;
+      case 'kite':
+        shadowFlat(x + 10, y + 6, r * 0.8, 0.16);
+        place(ctx, x, y, 36 + Math.sin(time * 2 + o.rot) * 4, base + Math.sin(time * 1.5 + o.rot) * 0.3);
+        ctx.fillStyle = '#e4572e'; ctx.beginPath(); ctx.moveTo(0, -r * 1.3); ctx.lineTo(r, 0); ctx.lineTo(0, r * 1.1); ctx.lineTo(-r, 0); ctx.closePath(); ctx.fill();
+        ctx.fillStyle = '#f2b632'; ctx.beginPath(); ctx.moveTo(0, -r * 1.3); ctx.lineTo(r, 0); ctx.lineTo(0, 0); ctx.closePath(); ctx.fill(); ctx.beginPath(); ctx.moveTo(0, r * 1.1); ctx.lineTo(-r, 0); ctx.lineTo(0, 0); ctx.closePath(); ctx.fill();
+        ctx.strokeStyle = '#2a2d33'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(0, r * 1.1);
+        for (let k = 1; k <= 5; k++) ctx.lineTo((k % 2 ? 5 : -5) + Math.sin(time * 5 + k) * 2, r * 1.1 + k * 7); ctx.stroke();
+        ctx.restore();
+        break;
+      case 'ufo':
+        shadowFlat(x, y, r * 1.1, 0.2);
+        place(ctx, x, y, 0, 0); ctx.fillStyle = 'rgba(150,255,190,0.12)'; circle(ctx, 0, 0, r * 1.3); ctx.restore();
+        stack(x, y, time * 2, 22, 30, h => { ctx.fillStyle = '#8d93a3'; circle(ctx, 0, 0, r * (1.25 - Math.abs(h - 26) / 18)); shade(0.25 * (1 - (h - 22) / 8)); });
+        sphere(x, y, time * 2, 32, r * 0.5, (h, rad) => { ctx.fillStyle = 'rgba(140,240,255,0.85)'; circle(ctx, 0, 0, rad); });
+        place(ctx, x, y, 30, time * 2);
+        for (let k = 0; k < 8; k++) { const a = k / 8 * Math.PI * 2; ctx.fillStyle = (k + Math.floor(time * 8)) % 2 ? '#ffe066' : '#ff5f6d'; circle(ctx, Math.cos(a) * r * 1.05, Math.sin(a) * r * 1.05, 2.5); }
+        ctx.restore();
+        break;
       case 'hole':
         place(ctx, x, y, 0.5, base + o.rot * 0.2);
         ctx.fillStyle = '#6b5a47'; ctx.beginPath(); ctx.ellipse(0, 0, r * 1.3, r * 1.1, 0, 0, Math.PI * 2); ctx.fill();
@@ -2205,7 +2311,7 @@
   }
 
   function obstacleColors(kind) {
-    return ({ cone: ['#f07b2a', '#f6f1e4'], crate: ['#a8743f', '#6e4a24'], barrel: ['#2f6fa8', '#9fc4e4'],
+    return ({ hay: ['#d9b44a', '#ecc95e'], sawhorse: ['#f07b2a', '#f6f1e4'], trashcan: ['#6b7280', '#9aa2b0'], cactus: ['#4c8a4a', '#6cae5f'], skull: ['#f2ede2', '#d9d2c3'], cone: ['#f07b2a', '#f6f1e4'], crate: ['#a8743f', '#6e4a24'], barrel: ['#2f6fa8', '#9fc4e4'],
       tumbleweed: ['#9c7a45', '#c7a46a'], snowman: ['#ffffff', '#f07b2a', '#222'] })[kind] || ['#888'];
   }
 
