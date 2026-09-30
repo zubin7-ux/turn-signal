@@ -542,7 +542,7 @@
   // where a (possibly moving) obstacle is across the road right now
   const obsLat = o => o.mv ? (o.mv.a + (o.mv.b - o.mv.a) * (0.5 - 0.5 * Math.cos(o.mv.w * time + o.mv.ph))) * LANE : o.lane * LANE;
   // new hazards get announced the first time they can appear
-  const HAZARD_INTROS = { 1: 'Holes in the road', 2: 'Collapsing road', 3: 'Torpedo strikes', 4: 'Oil slicks', 5: 'Moving obstacles', 6: 'Spike strips' };
+  const HAZARD_INTROS = { 1: 'Holes in the road', 2: 'Collapsing road', 3: 'Torpedo strikes', 4: 'Oil slicks', 5: 'Moving obstacles', 6: 'Spike strips', 9: 'Hazards start stacking' };
   // the four ground zones come in a shuffled order each run; then the Skyway, then space
   let zoneOrder = [0, 1, 2, 3];
   const biomeOf = n => n < 12 ? zoneOrder[Math.floor(n / 3)] : n < 18 ? 4 : 5;
@@ -658,7 +658,16 @@
       const blocked = order.slice(0, count);
       let free = order.slice(count);
       const moving = count === 1 && n >= (modIs('rush') ? 2 : 5) && R() < Math.min(modIs('rush') ? 0.6 : 0.35, (modIs('rush') ? 0.35 : 0.16) + (n - 5) * 0.02);
-      if (moving) {
+      // combo (turn 10+): an edge lane is blocked and something slides across the other two, so you time the gap
+      const timed = !moving && count === 2 && n >= 10 && R() < 0.22 && (blocked.includes(-1) !== blocked.includes(1));
+      if (timed) {
+        const edge = blocked.includes(-1) ? -1 : 1, ma = Math.min(0, -edge), mb = Math.max(0, -edge);
+        let kind = b.obs[Math.floor(R() * b.obs.length)];
+        obs.push({ s: y, lane: edge, kind, r: KINDS[kind].r, rot: R() * 6 });
+        const pool = MOVERS[biomeOf(n)], mk = pool[Math.floor(R() * pool.length)];
+        obs.push({ s: y + 4, lane: ma, kind: mk, r: KINDS[mk].r, rot: R() * 6, mv: { a: ma, b: mb, w: 1.3 + R() * 0.8, ph: R() * 6.28 } });
+        free = [];
+      } else if (moving) {
         // slides back and forth between two neighbouring lanes; the third lane is always clear
         const ln = blocked[0], other = ln === 0 ? (R() < 0.5 ? -1 : 1) : 0;
         const ma = Math.min(ln, other), mb = Math.max(ln, other);
@@ -677,11 +686,16 @@
           obs.push({ s: y + (R() * 16 - 8), lane: ln, kind, r: KINDS[kind].r, rot: R() * 6 });
         }
       }
-      rowsFree.push({ y, free });
+      // combo (turn 8+): an oil slick just before a row, waiting to shove you into it
+      if (!b.fly && n >= 8 && free.length && R() < 0.2 && y > 260) {
+        const ol = free[Math.floor(R() * free.length)];
+        obs.push({ s: y - 85, lane: ol, kind: 'oil', r: KINDS.oil.r, rot: R() * 6 });
+      }
+      if (free.length) rowsFree.push({ y, free });
       if (n >= 1 && boxes.length < (modIs('lucky') ? 2 : 1) && R() < (modIs('lucky') ? 0.22 : 0.08)) {
         const bl = free[Math.floor(R() * free.length)];
         const bs = y + 115;
-        if (bs < len - 220) boxes.push({ s: bs, lane: bl, got: false });
+        if (free.length && bs < len - 220) boxes.push({ s: bs, lane: bl, got: false });
       }
       y += gap + R() * 121;
     }
@@ -692,28 +706,28 @@
       coinsArr.push({ s: row.y + 60, lane: row.free[Math.floor(R() * row.free.length)], got: false });
     }
     if (nCoins && !rowsFree.length) coinsArr.push({ s: len * 0.5, lane: [-1, 0, 1][Math.floor(R() * 3)], got: false });
-    // road collapse: the outer lanes crumble away just ahead of you, leaving one or two lanes
+    // road collapse: a stretch where one or two random lanes will suddenly be closed and drop away
     let collapse = null;
-    if (n >= 2 && len > 900 && R() < (long ? 0.45 : 0.25)) {
+    if (n >= 2 && len > 900 && R() < (long ? 0.45 : 0.25) + Math.max(0, Math.min(0.2, (n - 8) * 0.02))) {
       const cl = 280 + R() * 260 + sp * 0.7;
-      const s0 = 280 + R() * Math.max(0, len - cl - 620);
+      const s0 = 380 + R() * Math.max(0, len - cl - 720);
       if (s0 + cl < len - 320) {
-        const keep = R() < 0.55 ? [[-1], [0], [1]][Math.floor(R() * 3)] : (R() < 0.5 ? [-1, 0] : [0, 1]);
-        collapse = { s0, s1: s0 + cl, keep, gone: [-1, 0, 1].filter(l => !keep.includes(l)), tiles: [] };
-        for (const ln of collapse.gone) for (let ts = s0; ts < s0 + cl; ts += 40) collapse.tiles.push({ s: ts, lane: ln, dusted: false });
-        const inside = v => v > s0 - 190 && v < s0 + cl + 120;
+        collapse = { s0, s1: s0 + cl, phase: 'idle', keep: [-1, 0, 1], gone: [], tiles: [] };
+        const inside = v => v > s0 - 150 && v < s0 + cl + 120;
         for (const arr of [obs, coinsArr, boxes]) for (let i = arr.length - 1; i >= 0; i--) if (inside(arr[i].s)) arr.splice(i, 1);
-        const cLane = keep[Math.floor(R() * keep.length)];
-        for (let k = 1; k <= 3; k++) coinsArr.push({ s: s0 + cl * k / 4, lane: cLane, got: false });
       }
     }
     // torpedo strikes: where on this road the targeting starts
     const torps = [];
-    if (n >= 3 && !collapse) {
+    if (n >= 3 && (!collapse || n >= 9)) {
       const room = len - 150 - sp * 3.2 - 250;
-      const count = long ? (room > sp * 3 ? 2 : 1) : 0;
+      // from turn 12 torpedoes can show up on normal straights too
+      const count = long ? (room > sp * 3 ? 2 : 1) : (n >= 12 && R() < 0.4 ? 1 : 0);
       for (let k = 0; k < count && room > 0; k++) {
         const ts = 150 + (count === 2 ? (k === 0 ? R() * room * 0.35 : room * 0.6 + R() * room * 0.4) : R() * room);
+        // combo (turn 9+): torpedoes can share a straight with a collapse, but never land inside it
+        const hit = ts + sp * 2.7;
+        if (collapse && hit > collapse.s0 - 200 && ts < collapse.s1 + 100) continue;
         torps.push({ s: ts, fired: false });
       }
     }
@@ -1883,44 +1897,68 @@
   setTimeout(() => setBoardMode(boardMode), 0);
 
   // ---- Road collapse ----
-  // Each crumbling tile lets go COLLAPSE_LEAD seconds before you'd reach it, so you watch the road fall away ahead.
-  const COLLAPSE_LEAD = 1.3;
+  // The road looks normal until the last moment. Then one or two random lanes flash construction
+  // stripes along the whole stretch and drop away 1-2 seconds later (less warning the faster you go).
+  const warnFor = () => Math.max(1, Math.min(2, 2 - (effSpeed() - 320) / 500));
   function tileT(g, tl) {
+    const C = g.collapse;
+    if (C.phase !== 'gone') return -99;
     const gi = segs.indexOf(g);
     if (gi < segIdx) return 99;
-    if (gi > segIdx) return -99;
-    const v = Math.max(120, effSpeed() || speed);
-    return (s - (tl.s - v * COLLAPSE_LEAD)) / v;
+    return time - C.goneAt - tl.delay;
   }
   function updateCollapse(seg) {
     const C = seg.collapse;
+    const v = Math.max(120, effSpeed());
+    if (C.phase === 'idle' && launchT > 1.55) {
+      const warn = warnFor();
+      if (s >= C.s0 - v * warn * 0.95 - 30) {
+        const n = Math.random() < 0.5 ? 1 : 2;
+        C.gone = [-1, 0, 1].sort(() => Math.random() - 0.5).slice(0, n);
+        if (n === 2 && C.gone.includes(-1) && C.gone.includes(1)) C.gone = [C.gone[0], 0];
+        C.keep = [-1, 0, 1].filter(l => !C.gone.includes(l));
+        C.phase = 'warn'; C.warnAt = time; C.goneAt = time + warn;
+        for (const ln of C.gone) for (let ts = C.s0; ts < C.s1; ts += 40) C.tiles.push({ s: ts, lane: ln, dusted: false, delay: (ts - C.s0) / (C.s1 - C.s0) * 0.35 });
+        const cLane = C.keep[Math.floor(Math.random() * C.keep.length)];
+        for (let k = 1; k <= 2; k++) seg.coins.push({ s: C.s0 + (C.s1 - C.s0) * k / 3, lane: cLane, got: false });
+        popText('ROAD CLOSING!');
+        for (let i = 0; i < 4; i++) setTimeout(() => blip(760, 0.09, 'square', 0.05), i * 220);
+      }
+    }
+    if (C.phase === 'warn' && time >= C.goneAt) { C.phase = 'gone'; blip(70, 0.6, 'sawtooth', 0.07); }
+    if (C.phase !== 'gone') return;
     for (const tl of C.tiles) {
       if (tl.dusted || tileT(seg, tl) < 0) continue;
       tl.dusted = true;
-      if (!C.rumbled) { C.rumbled = true; blip(70, 0.6, 'sawtooth', 0.07); popText('HOLD YOUR LANE!'); }
       const P = posOf(seg, tl.s + 20, tl.lane * LANE);
-      for (let i = 0; i < 3; i++) particles.push({ x: P.x + (Math.random() - .5) * 40, y: P.y + (Math.random() - .5) * 30, vx: (Math.random() - .5) * 60, vy: (Math.random() - .5) * 60, life: 0, max: 0.9, size: 4 + Math.random() * 5, color: '#6b6a66', kind: 'debris', rot: Math.random() * 6, h: 2, vh: 60 + Math.random() * 80 });
+      for (let i = 0; i < 2; i++) particles.push({ x: P.x + (Math.random() - .5) * 40, y: P.y + (Math.random() - .5) * 30, vx: (Math.random() - .5) * 60, vy: (Math.random() - .5) * 60, life: 0, max: 0.9, size: 4 + Math.random() * 5, color: '#6b6a66', kind: 'debris', rot: Math.random() * 6, h: 2, vh: 60 + Math.random() * 80 });
     }
     if (!C.survived && s > C.s1 && state === 'play') { C.survived = true; bump('collapse'); }
     if (arc || jumpH > 10 || ride.hover || s < C.s0 + 10 || s > C.s1 - 10) return;
-    const lo = Math.min(...C.keep) * LANE - LANE / 2, hi = Math.max(...C.keep) * LANE + LANE / 2;
-    if (lat < lo - 8 || lat > hi + 8) crash(BIOMES[biome].fly ? 'You fell through a gap in the skyway.' : 'The road fell away beneath you.');
+    // over a lane that has dropped away (the surviving lanes may not be next to each other)
+    if (C.gone.some(ln => Math.abs(lat - ln * LANE) < LANE / 2 - 4)) crash(BIOMES[biome].fly ? 'You fell through a gap in the skyway.' : 'The road fell away beneath you.');
   }
   function drawCollapses(list) {
     for (const g of list) {
       const C = g.collapse;
       if (!C) continue;
       const Bc = BIOMES[g.biome], pitCol = Bc.fly ? Bc.ground : '#07080c';
-      // red-and-white warning stripes painted on the lanes that are about to go
-      for (const ln of C.gone) for (let k = 0; k < 5; k++) {
-        const ws = C.s0 - 200 + k * 40;
-        fillPoly(segQuad(g, ln * LANE - 26, ws, ln * LANE + 26, ws + 18), k % 2 ? 'rgba(246,241,228,0.8)' : 'rgba(228,87,46,0.85)');
+      if (C.phase === 'warn') {
+        // flashing construction stripes over the whole doomed stretch, faster as the drop gets close
+        const left = C.goneAt - time, rate = left < 0.6 ? 16 : 8;
+        if (Math.sin(time * rate) > -0.2) {
+          for (const ln of C.gone) for (let ws = C.s0; ws < C.s1; ws += 36) {
+            const k = Math.round((ws - C.s0) / 36);
+            fillPoly(segQuad(g, ln * LANE - 28, ws, ln * LANE + 28, ws + 18), k % 2 ? 'rgba(246,241,228,0.85)' : 'rgba(228,87,46,0.9)');
+          }
+        }
+        continue;
       }
       for (const tl of C.tiles) {
         const tt = tileT(g, tl);
         if (tt < -0.9) continue;
         const x0 = tl.lane * LANE - LANE / 2, x1 = x0 + LANE;
-        if (tt < 0) {
+        if (tt < 0 && tt > -50) {
           // cracks spread first
           const k = 1 + tt / 0.9;
           fillPoly(segQuad(g, x0 + 6, tl.s + 12, x0 + 6 + (LANE - 12) * k, tl.s + 14.5), 'rgba(0,0,0,0.6)');
