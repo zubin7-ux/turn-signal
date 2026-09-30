@@ -7,6 +7,7 @@ the page in a full HTML document.
 """
 import json
 import pathlib
+import re
 import sys
 
 ROOT = pathlib.Path(__file__).parent
@@ -62,6 +63,12 @@ def main():
     # Move the page's own <title>/<link>/<style> into <head>, the rest into <body>
     body_start = page.index('<canvas id="c"')
     out = head + page[:body_start] + "</head>\n<body>\n" + page[body_start:] + "\n</body>\n</html>\n"
+    # Guard: every function in game.html must survive the swap, apart from the
+    # Claude-only multiplayer helpers that online.js replaces.
+    replaced = {"whenClaude", "liveDrivers"}
+    lost = [n for n in re.findall(r"function (\w+)", game) if n not in replaced and f"function {n}" not in out]
+    if lost:
+        sys.exit("build: these functions were dropped by the swap: " + ", ".join(sorted(set(lost))))
     (ROOT / "index.html").write_text(out)
     print(f"built index.html ({len(out) // 1024} KB)")
 
