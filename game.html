@@ -280,8 +280,8 @@
         <svg class="arrow-mark" viewBox="0 0 44 44" aria-hidden="true"><path d="M12 40V20a6 6 0 0 1 6-6h12" fill="none" stroke="#f6f1e4" stroke-width="6" stroke-linecap="round"/><path d="M27 4l12 10-12 10z" fill="#f6f1e4"/></svg>
         Turn Signal
       </h1>
-      <p>The road bends. You bend with it. Every clean turn makes you faster, and every 4 turns takes you somewhere new. Make it to turn 16 and your ride takes off.</p>
-      <p>Everyone drives the same road today. Other players show up as ghost cars, and the best runs go on the leaderboard.</p>
+      <p>The road bends. You bend with it. Every clean turn makes you faster, and every 3 turns takes you somewhere new. Make it to turn 12 and your ride takes off.</p>
+      <p>Every run is a brand-new road. See who else is driving right now, and chase the top of the leaderboard.</p>
       <ul class="rules">
         <li><span class="keys"><kbd>←</kbd><kbd>→</kbd></span>Change lanes to dodge whatever is in the road, holes included. Steer off the edge and your run is over.</li>
         <li><span class="keys"><kbd>←</kbd><kbd>→</kbd></span>Turn only once you are inside the corner box. Too early or too late and you crash. Turning early in the box puts you in the near lane, late in the far lane.</li>
@@ -373,8 +373,7 @@
   // ---- World constants ----
   const LANE = 64, W = LANE * 3;
   const SPEED_GAIN = 26, MAX_SPEED = 1400;
-  const APPROACH = 70;
-  const LEVEL_LEN = 4;
+  const APPROACH = 30;
   // Each turn adds less speed the faster you already are
   const gainAt = v => Math.max(8, SPEED_GAIN - (v - 320) * 0.03);
   const nominalSpeeds = [320];
@@ -396,7 +395,8 @@
   ];
   const hexRgb = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
   BIOMES.forEach(b => { b.rgb = hexRgb(b.ground); });
-  const biomeOf = n => Math.min(BIOMES.length - 1, Math.floor(n / LEVEL_LEN));
+  // Ground zones last 3 turns each, so you take off at turn 12; the Skyway lasts 6 before space
+  const biomeOf = n => n < 12 ? Math.floor(n / 3) : n < 18 ? 4 : 5;
 
   const KINDS = {
     cone: { r: 12, name: 'a cone' }, barrel: { r: 16, name: 'a barrel' }, crate: { r: 18, name: 'a crate' },
@@ -435,7 +435,9 @@
   let torp = null, crashLatV = 0;
 
   // Same seed for everyone on the same (UTC) day, so all players share one road
-  const TRACK = (() => { const d = new Date(); return d.getUTCFullYear() * 10000 + (d.getUTCMonth() + 1) * 100 + d.getUTCDate(); })();
+  // A fresh seed every run, so every road is new
+  let TRACK = 0;
+  const newTrack = () => { TRACK = (Math.random() * 0x7fffffff) | 0; };
   function rngFor(n) {
     let a = (Math.imul(TRACK, 2654435761) + Math.imul(n + 1, 97531)) | 0;
     return () => { a = (a + 0x6D2B79F5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
@@ -471,7 +473,7 @@
     }
     // torpedo strikes: where on this road the targeting starts
     const torps = [];
-    if (n >= 2) {
+    if (n >= 4) {
       const room = len - 150 - sp * 3.2 - 250;
       const count = long ? (room > sp * 3 ? 2 : 1) : 0;
       for (let k = 0; k < count && room > 0; k++) {
@@ -479,7 +481,9 @@
         torps.push({ s: ts, fired: false });
       }
     }
-    return { S, h, len, turn, obs, coins: coinsArr, torps, n, biome: biomeOf(n) };
+    // the odd roadside billboard
+    const board = n >= 1 && len > 600 && R() < 0.45 ? { s: 140 + R() * (len - 600), side: R() < 0.5 ? -1 : 1 } : null;
+    return { S, h, len, turn, obs, coins: coinsArr, torps, board, n, biome: biomeOf(n) };
   }
 
   function nextStart(seg) {
@@ -503,6 +507,7 @@
   }
 
   function reset() {
+    newTrack();
     ride = rideById(rideId);
     speed = ride.start; turns = 0; coins = 0; topSpeed = speed;
     segs = []; segIdx = 0; segCount = 0;
@@ -613,7 +618,7 @@
     if (inBox(seg)) {
       if (d === seg.turn) doTurn();
       else crash('Wrong way. That corner bent ' + (seg.turn < 0 ? 'left' : 'right') + '.');
-    } else if (s >= seg.len - APPROACH) {
+    } else if (s >= seg.len - APPROACH && d === seg.turn) {
       crash('Too early. Wait until you are inside the box to turn.');
     } else {
       const nl = lane + d;
@@ -956,6 +961,28 @@
     sendPresence();
   }
 
+  // ---- Roadside billboards ----
+  function billboardItems(list) {
+    for (const g of list) {
+      if (!g.board) continue;
+      const bp = posOf(g, g.board.s, g.board.side * (W / 2 + 100));
+      const p = proj(bp.x, bp.y, 0);
+      if (!inView(p, 200)) continue;
+      add(p.z, () => {
+        place(ctx, bp.x + 10, bp.y + 8, 0, 0); ctx.fillStyle = 'rgba(0,0,0,0.2)'; ctx.fillRect(-80, -6, 160, 12); ctx.restore();
+        billboard(bp.x, bp.y, 0);
+        ctx.fillStyle = '#7d8088'; ctx.fillRect(-58, -70, 6, 70); ctx.fillRect(52, -70, 6, 70);
+        ctx.fillStyle = '#0f6b45'; rr(ctx, -84, -128, 168, 64, 8); ctx.fill();
+        ctx.strokeStyle = '#f6f1e4'; ctx.lineWidth = 3; rr(ctx, -79, -123, 158, 54, 5); ctx.stroke();
+        ctx.fillStyle = '#f6f1e4'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.font = '900 20px Overpass, system-ui, sans-serif'; ctx.fillText('PITER IS BAD', 0, -104);
+        ctx.font = '800 14px Overpass, system-ui, sans-serif'; ctx.fillText('AT THE GAME', 0, -84);
+        ctx.textAlign = 'start'; ctx.textBaseline = 'alphabetic';
+        ctx.restore();
+      });
+    }
+  }
+
   // ---- Torpedo strikes ----
   // A target hunts across the lanes about 0.75 s ahead of the car, then locks onto your lane
   // and a torpedo drops there. Be in a different lane when you reach the target.
@@ -1030,7 +1057,7 @@
   }
 
   // ---- Multiplayer: shared leaderboard and live ghost cars ----
-  // Everyone drives the same road on a given day, so other players' positions line up with yours.
+  // Each run is its own road, so ghost cars only show when two players share one; the live list always works.
   let mp = { user: null, db: null, room: null, myId: null, board: [], boardState: 'loading', myRemote: 0, peers: [], names: {}, note: '' };
   let lastPresence = -1, lastLive = -1, boardRender = 0;
 
@@ -1059,7 +1086,7 @@
   });
 
   function liveDrivers() {
-    return mp.peers.filter(p => p.kind === 'viewer' && !p.sameTab && p.presence && p.presence.state === 'play' && p.presence.track === TRACK);
+    return mp.peers.filter(p => p.kind === 'viewer' && !p.sameTab && p.presence && p.presence.state === 'play');
   }
   const nameOf = id => ((id && mp.names[id] && mp.names[id].name) || '').slice(0, 28);
 
@@ -1974,6 +2001,7 @@
 
     items.length = 0;
     roadItems(list);
+    billboardItems(list);
     torpItems();
     for (const [b, a] of layers) decoItems(BIOMES[b].deco, bFar, a);
     carItem(P, carA + tilt);

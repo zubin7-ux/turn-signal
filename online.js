@@ -1,5 +1,5 @@
   // ---- Multiplayer (public site): username leaderboard + live ghost cars over Supabase ----
-  // Everyone drives the same road on a given day, so other players' positions line up with yours.
+  // Each run is its own road, so ghost cars only appear when two players share a seed; the live list always works.
   const SUPABASE_URL = '%%SUPABASE_URL%%', SUPABASE_KEY = '%%SUPABASE_KEY%%';
   const MY_KEY = Math.random().toString(36).slice(2, 12);
   let mp = { sb: null, chan: null, ready: false, board: [], boardState: 'loading', peers: new Map(), note: '' };
@@ -20,7 +20,7 @@
     } catch (e) { mp.boardState = 'off'; renderBoards(); return; }
     loadBoard();
     setInterval(loadBoard, 20000);
-    mp.chan = mp.sb.channel('track-' + TRACK, { config: { broadcast: { self: false } } });
+    mp.chan = mp.sb.channel('lobby', { config: { broadcast: { self: false } } });
     mp.chan.on('broadcast', { event: 'pos' }, ({ payload }) => {
       if (!payload || typeof payload.k !== 'string' || payload.k === MY_KEY) return;
       mp.peers.set(payload.k, { ...payload, at: Date.now() });
@@ -110,7 +110,7 @@
     if (!changed && (state !== 'play' || (lastPresence >= 0 && time - lastPresence < 0.33))) return;
     lastPresence = time; lastState = state;
     mp.chan.send({ type: 'broadcast', event: 'pos', payload: {
-      k: MY_KEY, name: myName(), state, n: segs[segIdx].n, s: Math.round(s), lat: Math.round(lat),
+      k: MY_KEY, name: myName(), state, track: TRACK, n: segs[segIdx].n, s: Math.round(s), lat: Math.round(lat),
       v: Math.round(state === 'play' ? speed : 0), ride: ride.id, turns } }).catch(() => {});
   }
 
@@ -130,7 +130,7 @@
 
   function ghostItems() {
     for (const q of livePeers()) {
-      if (typeof q.n !== 'number') continue;
+      if (typeof q.n !== 'number' || q.track !== TRACK) continue;
       const g = segs.find(x => x.n === q.n);
       if (!g) continue;
       const ahead = (Number(q.v) || 0) * Math.min(0.6, Math.max(0, (Date.now() - q.at) / 1000));
