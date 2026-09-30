@@ -196,6 +196,19 @@
   .reveal-info { display: grid; gap: 8px; text-align: center; justify-items: center; }
   .reveal-rarity { font: 800 13px/1 "Overpass Mono", monospace !important; letter-spacing: .2em; color: var(--rar); }
   .reveal-note { font-weight: 700 !important; color: var(--caution); }
+  .icons { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
+  .icon-pick {
+    background: var(--sign-deep); color: var(--sign-ink); cursor: pointer;
+    border: 2px solid rgba(246,241,228,.25); border-top: 3px solid var(--rar, #f6f1e4); border-radius: 9px;
+    padding: 6px 2px 4px; display: grid; justify-items: center; gap: 3px;
+    font: 800 9px/1.1 "Overpass", system-ui, sans-serif; text-transform: uppercase; letter-spacing: .03em;
+  }
+  .icon-pick canvas { width: 34px; height: 34px; display: block; }
+  .icon-pick span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .icon-pick:hover { border-color: rgba(246,241,228,.6); }
+  .icon-pick[aria-pressed="true"] { border-color: var(--caution); background: #0c5a3a; box-shadow: inset 0 0 0 1px var(--caution); }
+  .icon-pick.locked canvas { opacity: .25; filter: grayscale(1) brightness(.4); }
+  .row-icon { display: inline-block; vertical-align: -4px; margin-right: 6px; border-radius: 50%; background: #fff; }
   .rule-rule { height: 0; border-top: 2px solid rgba(246,241,228,.35); }
 
   .garage { display: grid; gap: 9px; }
@@ -332,7 +345,7 @@
         <svg class="arrow-mark" viewBox="0 0 44 44" aria-hidden="true"><path d="M12 40V20a6 6 0 0 1 6-6h12" fill="none" stroke="#f6f1e4" stroke-width="6" stroke-linecap="round"/><path d="M27 4l12 10-12 10z" fill="#f6f1e4"/></svg>
         Turn Signal
       </h1>
-      <p>The road bends. You bend with it. Every clean turn makes you faster, and every 3 turns takes you somewhere new. Make it to turn 12 and your ride takes off.</p>
+      <p>The road bends. You bend with it. Every clean turn makes you faster until turn 10. After that the road gets meaner: new hazards keep showing up and traffic gets thicker. Every 3 turns takes you somewhere new, and at turn 12 your ride takes off.</p>
       <p>Every run is a brand-new road. See who else is driving right now, and chase the top of the leaderboard.</p>
       <ul class="rules">
         <li><span class="keys"><kbd>←</kbd><kbd>→</kbd></span>Change lanes to dodge whatever is in the road, holes included. Steer off the edge and your run is over.</li>
@@ -351,6 +364,14 @@
           <span class="bank" id="bank">0 coins</span>
         </div>
         <p class="box-note" id="boxNote"></p>
+        <div class="rule-rule"></div>
+        <div class="garage-head"><span>YOUR ICON</span><span class="collected" id="iconCollected"></span></div>
+        <div class="icons" id="icons"></div>
+        <p class="perk" id="iconPerk"></p>
+        <div class="mbox-row">
+          <button class="mbox" id="iconBoxBtn" type="button"><span class="mbox-cube" aria-hidden="true">?</span><span class="mbox-text"><b>Open an icon box</b><small>30 coins</small></span></button>
+        </div>
+        <p class="box-note" id="iconBoxNote"></p>
       </div>
       <button class="go" id="startBtn" type="button">Drive <small>Space</small></button>
       <p style="font-size:13px;opacity:.8">On a phone or tablet, tap the left or right half of the screen. Press P to pause.</p>
@@ -445,7 +466,7 @@
     start: $('startScreen'), over: $('overScreen'), pause: $('pauseScreen'),
     crashWhy: $('crashWhy'), oTurns: $('oTurns'), oCoins: $('oCoins'), oSpeed: $('oSpeed'), oBest: $('oBest'),
     badges: $('badges'), overTitle: $('overTitle'), muteBtn: $('muteBtn'), pauseBtn: $('pauseBtn'),
-    rides: $('rides'), perk: $('perk'), bank: $('bank'), live: $('live'), liveList: $('liveList'), itemWrap: $('itemWrap'), itemBtn: $('itemBtn'), itemIcon: $('itemIcon'), fxChips: $('fxChips'), collected: $('collected'), boxBtn: $('boxBtn'), boxNote: $('boxNote'), boxScreen: $('boxScreen'), revealCube: $('revealCube'), revealCanvas: $('revealCanvas'), revealInfo: $('revealInfo'), revealBtns: $('revealBtns'), revealRarity: $('revealRarity'), revealName: $('revealName'), revealPerk: $('revealPerk'), revealNote: $('revealNote'), revealDrive: $('revealDrive'), revealAgain: $('revealAgain'), revealBack: $('revealBack')
+    rides: $('rides'), perk: $('perk'), bank: $('bank'), live: $('live'), liveList: $('liveList'), itemWrap: $('itemWrap'), itemBtn: $('itemBtn'), itemIcon: $('itemIcon'), fxChips: $('fxChips'), collected: $('collected'), boxBtn: $('boxBtn'), boxNote: $('boxNote'), boxScreen: $('boxScreen'), revealCube: $('revealCube'), revealCanvas: $('revealCanvas'), revealInfo: $('revealInfo'), revealBtns: $('revealBtns'), revealRarity: $('revealRarity'), revealName: $('revealName'), revealPerk: $('revealPerk'), revealNote: $('revealNote'), revealDrive: $('revealDrive'), revealAgain: $('revealAgain'), revealBack: $('revealBack'), icons: $('icons'), iconPerk: $('iconPerk'), iconCollected: $('iconCollected'), iconBoxBtn: $('iconBoxBtn'), iconBoxNote: $('iconBoxNote')
   };
   const reduceMotion = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
   const store = {
@@ -460,7 +481,9 @@
   // Each turn adds less speed the faster you already are
   const gainAt = v => Math.max(8, SPEED_GAIN - (v - 320) * 0.03);
   const nominalSpeeds = [320];
+  const SPEED_CAP_TURNS = 10;
   function nominalSpeed(n) {
+    n = Math.min(n, SPEED_CAP_TURNS);
     while (nominalSpeeds.length <= n) { const v = nominalSpeeds[nominalSpeeds.length - 1]; nominalSpeeds.push(Math.min(MAX_SPEED, v + gainAt(v))); }
     return nominalSpeeds[n];
   }
@@ -479,15 +502,21 @@
   const hexRgb = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
   BIOMES.forEach(b => { b.rgb = hexRgb(b.ground); });
   // Ground zones last 3 turns each, so you take off at turn 12; the Skyway lasts 6 before space
+  // what slides across the lanes in each zone
+  const MOVERS = [['barrel', 'cow'], ['tumbleweed', 'barrel'], ['penguin', 'barrel'], ['npccar', 'barrel'], ['drone', 'bird'], ['ufo', 'asteroid']];
+  // where a (possibly moving) obstacle is across the road right now
+  const obsLat = o => o.mv ? (o.mv.a + (o.mv.b - o.mv.a) * (0.5 - 0.5 * Math.cos(o.mv.w * time + o.mv.ph))) * LANE : o.lane * LANE;
+  // new hazards get announced the first time they can appear
+  const HAZARD_INTROS = { 3: 'Holes in the road', 4: 'Torpedo strikes', 6: 'Oil slicks', 8: 'Moving obstacles', 9: 'Spike strips' };
   const biomeOf = n => n < 12 ? Math.floor(n / 3) : n < 18 ? 4 : 5;
 
   const KINDS = {
     cone: { r: 12, name: 'a cone' }, barrel: { r: 16, name: 'a barrel' }, crate: { r: 18, name: 'a crate' },
     rock: { r: 18, name: 'a rock' }, tumbleweed: { r: 14, name: 'a tumbleweed' },
     snowman: { r: 16, name: 'a snowman' }, ice: { r: 17, name: 'a block of ice' },
-    bird: { r: 12, name: 'a bird' }, balloon: { r: 19, name: 'a hot-air balloon' }, drone: { r: 15, name: 'a drone' },
+    bird: { r: 18, name: 'a bird' }, balloon: { r: 19, name: 'a hot-air balloon' }, drone: { r: 21, name: 'a drone' },
     asteroid: { r: 18, name: 'an asteroid' }, satellite: { r: 16, name: 'a satellite' },
-    hole: { r: 20, name: 'a hole' },
+    hole: { r: 20, name: 'a hole' }, oil: { r: 22, name: 'an oil slick' }, spikes: { r: 18, name: 'a spike strip' },
     hay: { r: 17, name: 'a hay bale' }, sawhorse: { r: 20, name: 'a road barrier' }, cow: { r: 20, name: 'a cow' },
     cactus: { r: 14, name: 'a cactus' }, skull: { r: 13, name: 'a cow skull' }, penguin: { r: 13, name: 'a penguin' },
     npccar: { r: 20, name: 'a parked car' }, trashcan: { r: 14, name: 'a trash can' }, kite: { r: 16, name: 'a kite' },
@@ -578,16 +607,35 @@
     const turn = h === 0 ? (R() < 0.5 ? -1 : 1) : (h === 1 ? -1 : 1);
     const obs = [], coinsArr = [], boxes = [];
     let y = first ? 320 : 190 + sp * 0.1 + R() * 60;
-    const gap = Math.max(187, sp * 0.66);
-    const twoChance = Math.min(0.5, 0.13 + n * 0.036);
+    // past the speed cap, rows get closer together instead
+    const dense = n > SPEED_CAP_TURNS ? Math.max(0.72, 1 - (n - SPEED_CAP_TURNS) * 0.025) : 1;
+    const gap = Math.max(175, sp * 0.66 * dense);
+    const twoChance = Math.min(0.6, 0.13 + n * 0.036);
     const rowsFree = [];
     while (y < len - 260) {
       const count = R() < twoChance ? 2 : 1;
       const order = [-1, 0, 1].sort(() => R() - 0.5);
-      const blocked = order.slice(0, count), free = order.slice(count);
-      for (const ln of blocked) {
-        const kind = !b.fly && n >= 1 && R() < 0.14 ? 'hole' : b.obs[Math.floor(R() * b.obs.length)];
-        obs.push({ s: y + (R() * 16 - 8), lane: ln, kind, r: KINDS[kind].r, rot: R() * 6 });
+      const blocked = order.slice(0, count);
+      let free = order.slice(count);
+      const moving = count === 1 && n >= 8 && R() < Math.min(0.35, 0.14 + (n - 8) * 0.02);
+      if (moving) {
+        // slides back and forth between two neighbouring lanes; the third lane is always clear
+        const ln = blocked[0], other = ln === 0 ? (R() < 0.5 ? -1 : 1) : 0;
+        const ma = Math.min(ln, other), mb = Math.max(ln, other);
+        const pool = MOVERS[biomeOf(n)], kind = pool[Math.floor(R() * pool.length)];
+        obs.push({ s: y, lane: ln, kind, r: KINDS[kind].r, rot: R() * 6, mv: { a: ma, b: mb, w: 1.4 + R() * 1.1, ph: R() * 6.28 } });
+        free = [-1, 0, 1].filter(l => l !== ma && l !== mb);
+      } else {
+        for (const ln of blocked) {
+          let kind = b.obs[Math.floor(R() * b.obs.length)];
+          const q = R();
+          if (!b.fly) {
+            if (n >= 3 && q < 0.13) kind = 'hole';
+            else if (n >= 6 && q < 0.24) kind = 'oil';
+            else if (n >= 9 && q < 0.33) kind = 'spikes';
+          }
+          obs.push({ s: y + (R() * 16 - 8), lane: ln, kind, r: KINDS[kind].r, rot: R() * 6 });
+        }
       }
       rowsFree.push({ y, free });
       if (n >= 1 && !boxes.length && R() < 0.08) {
@@ -680,6 +728,162 @@
     ui.banner.classList.add('show');
   }
 
+  // ---- Character icons ----
+  // 15 collectible faces, drawn in a -50..50 box. Shown above your car, on ghost cars and on the leaderboard.
+  const ICONS = [
+    { id: 'smile', name: 'Smiley', rarity: 'starter' },
+    { id: 'frog', name: 'Frog', rarity: 'common' },
+    { id: 'cat', name: 'Cat', rarity: 'common' },
+    { id: 'dog', name: 'Pup', rarity: 'common' },
+    { id: 'panda', name: 'Panda', rarity: 'uncommon' },
+    { id: 'robot', name: 'Robot', rarity: 'uncommon' },
+    { id: 'ghost', name: 'Ghost', rarity: 'uncommon' },
+    { id: 'alien', name: 'Alien', rarity: 'rare' },
+    { id: 'ninja', name: 'Ninja', rarity: 'rare' },
+    { id: 'pirate', name: 'Pirate', rarity: 'rare' },
+    { id: 'astro', name: 'Astronaut', rarity: 'epic' },
+    { id: 'dragon', name: 'Dragon', rarity: 'epic' },
+    { id: 'skull', name: 'Skull', rarity: 'epic' },
+    { id: 'king', name: 'The King', rarity: 'legendary' },
+    { id: 'unicorn', name: 'Unicorn', rarity: 'legendary' }
+  ];
+  const ICON_BOX_COST = 30;
+  const iconById = id => ICONS.find(i => i.id === id) || ICONS[0];
+  let ownedIcons = store.get('icons', ['smile']);
+  if (!Array.isArray(ownedIcons)) ownedIcons = ['smile'];
+  ownedIcons = [...new Set(['smile', ...ownedIcons.filter(id => ICONS.some(i => i.id === id))])];
+  let iconId = store.get('icon', 'smile');
+  if (!ownedIcons.includes(iconId)) iconId = 'smile';
+
+  function drawIcon(c, id, x, y, rad) {
+    const k = ICONS.some(i => i.id === id) ? id : 'smile';
+    c.save(); c.translate(x, y); c.scale(rad / 50, rad / 50);
+    const fill = (col, f) => { c.fillStyle = col; c.beginPath(); f(); c.fill(); };
+    const circ = (cx, cy, r, col) => fill(col, () => c.arc(cx, cy, r, 0, Math.PI * 2));
+    const ell = (cx, cy, rx, ry, rot, col) => fill(col, () => c.ellipse(cx, cy, rx, ry, rot, 0, Math.PI * 2));
+    const eyes = (dx, dy, r, col = '#1b1c20') => { circ(-dx, dy, r, col); circ(dx, dy, r, col); circ(-dx + r * 0.35, dy - r * 0.35, r * 0.35, '#fff'); circ(dx + r * 0.35, dy - r * 0.35, r * 0.35, '#fff'); };
+    const smile = (y0, w, col = '#1b1c20', lw = 5) => { c.strokeStyle = col; c.lineWidth = lw; c.lineCap = 'round'; c.beginPath(); c.arc(0, y0 - w * 0.6, w, 0.2 * Math.PI, 0.8 * Math.PI); c.stroke(); };
+    switch (k) {
+      case 'smile': circ(0, 0, 46, '#ffd23f'); eyes(15, -10, 7); smile(14, 22); break;
+      case 'frog':
+        ell(0, 8, 48, 38, 0, '#6cc24a'); circ(-22, -24, 17, '#6cc24a'); circ(22, -24, 17, '#6cc24a');
+        circ(-22, -25, 11, '#fff'); circ(22, -25, 11, '#fff'); circ(-21, -24, 6, '#1b1c20'); circ(23, -24, 6, '#1b1c20');
+        smile(16, 26, '#2f6b22'); circ(-30, 12, 6, '#f29bb0'); circ(30, 12, 6, '#f29bb0'); break;
+      case 'cat':
+        fill('#f2a03d', () => { c.moveTo(-40, -8); c.lineTo(-36, -48); c.lineTo(-10, -34); c.closePath(); c.moveTo(40, -8); c.lineTo(36, -48); c.lineTo(10, -34); c.closePath(); });
+        circ(0, 4, 42, '#f2a03d'); eyes(15, -4, 7); fill('#e86a8a', () => { c.moveTo(-5, 10); c.lineTo(5, 10); c.lineTo(0, 16); c.closePath(); });
+        c.strokeStyle = '#6b3d10'; c.lineWidth = 2.5; c.beginPath(); for (const s of [-1, 1]) for (const dy of [12, 18]) { c.moveTo(s * 10, dy); c.lineTo(s * 36, dy - 4 + (dy - 12)); } c.stroke(); break;
+      case 'dog':
+        ell(-36, 0, 12, 26, 0.3, '#7a4a24'); ell(36, 0, 12, 26, -0.3, '#7a4a24');
+        circ(0, 2, 40, '#c58b54'); ell(0, 18, 20, 15, 0, '#e8c49c'); eyes(14, -8, 6); ell(0, 10, 8, 6, 0, '#1b1c20');
+        ell(0, 28, 6, 8, 0, '#e86a8a'); break;
+      case 'panda':
+        circ(-32, -32, 13, '#1b1c20'); circ(32, -32, 13, '#1b1c20'); circ(0, 2, 44, '#f6f6f2');
+        ell(-16, -4, 11, 14, -0.5, '#1b1c20'); ell(16, -4, 11, 14, 0.5, '#1b1c20'); circ(-15, -5, 4, '#fff'); circ(15, -5, 4, '#fff');
+        ell(0, 14, 7, 5, 0, '#1b1c20'); smile(28, 10, '#1b1c20', 3.5); break;
+      case 'robot':
+        c.strokeStyle = '#6b7280'; c.lineWidth = 4; c.beginPath(); c.moveTo(0, -38); c.lineTo(0, -50); c.stroke(); circ(0, -48, 6, '#ff5f6d');
+        fill('#9aa4b2', () => { c.roundRect ? c.roundRect(-40, -38, 80, 76, 14) : c.rect(-40, -38, 80, 76); });
+        fill('#1d2433', () => { c.rect(-28, -20, 56, 22); }); circ(-13, -9, 6, '#5ff0ff'); circ(13, -9, 6, '#5ff0ff');
+        c.fillStyle = '#4b5261'; for (let i = -20; i <= 16; i += 9) c.fillRect(i, 16, 5, 12); break;
+      case 'ghost':
+        fill('#f4f6ff', () => { c.arc(0, -6, 40, Math.PI, 0); c.lineTo(40, 40); for (let i = 3; i >= 0; i--) c.quadraticCurveTo(-40 + i * 20 + 10 + 10, 26, -40 + i * 20, 40); c.closePath(); });
+        ell(-14, -8, 7, 11, 0, '#1b1c20'); ell(14, -8, 7, 11, 0, '#1b1c20'); ell(0, 16, 6, 8, 0, '#1b1c20'); break;
+      case 'alien':
+        fill('#7de07a', () => { c.ellipse(0, -4, 42, 46, 0, 0, Math.PI * 2); });
+        ell(-17, -2, 14, 8, 0.6, '#101418'); ell(17, -2, 14, 8, -0.6, '#101418'); circ(-20, -5, 3, '#fff'); circ(14, -5, 3, '#fff');
+        smile(26, 9, '#2f6b22', 3); break;
+      case 'ninja':
+        circ(0, 0, 44, '#1b1c20'); fill('#f1c49b', () => c.rect(-36, -14, 72, 20)); eyes(14, -4, 5);
+        fill('#d8433b', () => c.rect(-44, -30, 88, 10)); fill('#d8433b', () => { c.moveTo(38, -28); c.lineTo(52, -40); c.lineTo(50, -24); c.closePath(); c.moveTo(38, -24); c.lineTo(54, -18); c.lineTo(44, -14); c.closePath(); }); break;
+      case 'pirate':
+        circ(0, 6, 40, '#f1c49b'); fill('#1b1c20', () => { c.moveTo(-50, -18); c.quadraticCurveTo(0, -60, 50, -18); c.quadraticCurveTo(0, -30, -50, -18); });
+        circ(0, -30, 5, '#f6f1e4'); c.strokeStyle = '#1b1c20'; c.lineWidth = 3; c.beginPath(); c.moveTo(-36, -12); c.lineTo(30, 4); c.stroke();
+        ell(-14, 0, 10, 9, 0, '#1b1c20'); circ(15, 0, 6, '#1b1c20'); circ(17, -2, 2, '#fff'); smile(26, 14, '#7a3b1b', 4); break;
+      case 'astro':
+        circ(0, 0, 46, '#f4f6fa'); circ(0, 0, 46, 'rgba(0,0,0,0)'); c.strokeStyle = '#b9c0cc'; c.lineWidth = 4; c.beginPath(); c.arc(0, 0, 44, 0, Math.PI * 2); c.stroke();
+        fill('#1d2a44', () => { c.roundRect ? c.roundRect(-32, -22, 64, 40, 18) : c.rect(-32, -22, 64, 40); });
+        fill('rgba(140,200,255,0.55)', () => { c.ellipse(-12, -10, 12, 6, -0.4, 0, Math.PI * 2); }); circ(34, -34, 5, '#e4572e'); break;
+      case 'dragon':
+        fill('#f2c94c', () => { c.moveTo(-30, -26); c.lineTo(-40, -52); c.lineTo(-16, -34); c.closePath(); c.moveTo(30, -26); c.lineTo(40, -52); c.lineTo(16, -34); c.closePath(); });
+        circ(0, 4, 42, '#3fae5a'); ell(0, 22, 26, 16, 0, '#6fcf7f'); circ(-9, 20, 3, '#1b1c20'); circ(9, 20, 3, '#1b1c20');
+        ell(-16, -8, 9, 7, 0, '#ffd23f'); ell(16, -8, 9, 7, 0, '#ffd23f'); ell(-16, -8, 2.5, 6, 0, '#1b1c20'); ell(16, -8, 2.5, 6, 0, '#1b1c20'); break;
+      case 'skull':
+        circ(0, -6, 40, '#ece6d8'); fill('#ece6d8', () => c.rect(-22, 20, 44, 20));
+        ell(-15, -6, 11, 12, 0, '#1b1c20'); ell(15, -6, 11, 12, 0, '#1b1c20'); circ(-15, -5, 4, '#ff8a2a'); circ(15, -5, 4, '#ff8a2a');
+        fill('#1b1c20', () => { c.moveTo(0, 8); c.lineTo(-5, 18); c.lineTo(5, 18); c.closePath(); }); c.fillStyle = '#1b1c20'; for (let i = -16; i <= 12; i += 8) c.fillRect(i, 26, 3, 12); break;
+      case 'king':
+        circ(0, 8, 40, '#ffd23f'); eyes(14, 0, 6);
+        fill('#7a3b1b', () => { c.ellipse(-10, 22, 12, 5, 0.3, 0, Math.PI * 2); c.ellipse(10, 22, 12, 5, -0.3, 0, Math.PI * 2); });
+        fill('#f5b400', () => { c.moveTo(-34, -22); c.lineTo(-34, -50); c.lineTo(-17, -36); c.lineTo(0, -54); c.lineTo(17, -36); c.lineTo(34, -50); c.lineTo(34, -22); c.closePath(); });
+        circ(0, -34, 5, '#e4572e'); circ(-22, -30, 4, '#4aa3ff'); circ(22, -30, 4, '#5be37d'); break;
+      case 'unicorn': {
+        const cols = ['#ff5f6d', '#f2b632', '#5be37d', '#4aa3ff', '#c07bff'];
+        cols.forEach((col, i) => circ(-34 + i * 4, -20 + i * 12, 14, col));
+        circ(0, 6, 38, '#fbf7ff');
+        c.save(); c.beginPath(); c.moveTo(-8, -28); c.lineTo(0, -62); c.lineTo(8, -28); c.closePath(); c.clip();
+        cols.forEach((col, i) => { c.fillStyle = col; c.fillRect(-10, -62 + i * 7, 20, 7); }); c.restore();
+        eyes(13, 0, 6); circ(-24, 14, 6, '#f7a8c8'); circ(24, 14, 6, '#f7a8c8'); smile(26, 10, '#1b1c20', 3.5); break;
+      }
+    }
+    c.restore();
+  }
+
+  // a round badge that floats above a car
+  function carBadge(x, y, h, id) {
+    billboard(x, y, h);
+    ctx.fillStyle = 'rgba(15,20,30,0.6)'; circle(ctx, 0, 0, 19);
+    ctx.fillStyle = '#ffffff'; circle(ctx, 0, 0, 16.5);
+    drawIcon(ctx, id, 0, 0, 15);
+    ctx.restore();
+  }
+
+  // a small canvas of an icon, for lists
+  function iconCanvas(id, px) {
+    const cv = document.createElement('canvas');
+    cv.width = px * 2; cv.height = px * 2; cv.className = 'row-icon';
+    cv.style.width = px + 'px'; cv.style.height = px + 'px';
+    const c = cv.getContext('2d');
+    if (c) drawIcon(c, id, px, px, px * 0.95);
+    return cv;
+  }
+
+  // ---- Weather: snow in your face in Frost Pass, blowing sand in the Dust Bowl ----
+  const flakes = [];
+  function updateWeather(dt) {
+    const w = zone => biome === zone ? biomeT : prevBiome === zone ? 1 - biomeT : 0;
+    const snowA = w(2), dustA = w(1);
+    const moving = state === 'play' || state === 'menu';
+    if (!reduceMotion && moving) {
+      const spawn = (rate, kind) => { let n = rate * dt; while (n > 0) { if (Math.random() < n) flakes.push({ a: Math.random() * Math.PI * 2, r: 8 + Math.random() * 70, z: 0.6 + Math.random() * 0.9, kind, drift: (Math.random() - 0.5) }); n -= 1; } };
+      spawn(70 * snowA, 'snow');
+      spawn(40 * dustA, 'dust');
+    }
+    const rush = 1.3 + (state === 'play' ? effSpeed() / 420 : 0.3);
+    for (const f of flakes) { f.r += f.r * dt * rush; f.a += f.drift * dt * 0.4; }
+    for (let i = flakes.length - 1; i >= 0; i--) if (flakes[i].r > Math.hypot(vw, vh)) flakes.splice(i, 1);
+    if (flakes.length > 500) flakes.splice(0, flakes.length - 500);
+  }
+  function drawWeather() {
+    if (!flakes.length) return;
+    const vx = vw / 2, vy = cam.hy + (vh - cam.hy) * 0.28, u = vh / 800;
+    for (const f of flakes) {
+      const x = vx + Math.cos(f.a) * f.r * (f.kind === 'dust' ? 1.5 : 1.1);
+      const y = vy + Math.sin(f.a) * f.r * (f.kind === 'dust' ? 0.55 : 0.9) + (f.kind === 'snow' ? f.r * 0.12 : 0);
+      const sz = (0.8 + f.r / 110) * f.z * u;
+      if (f.kind === 'snow') {
+        ctx.fillStyle = `rgba(255,255,255,${Math.min(0.9, 0.3 + f.r / 400)})`;
+        ctx.beginPath(); ctx.arc(x, y, sz * 1.6, 0, Math.PI * 2); ctx.fill();
+      } else {
+        ctx.strokeStyle = `rgba(222,190,132,${Math.min(0.55, 0.15 + f.r / 700)})`;
+        ctx.lineWidth = Math.max(1, sz); ctx.lineCap = 'round';
+        const tx = Math.cos(f.a) * sz * 6, ty = Math.sin(f.a) * sz * 2;
+        ctx.beginPath(); ctx.moveTo(x - tx, y - ty); ctx.lineTo(x, y); ctx.stroke();
+      }
+    }
+    ctx.lineCap = 'butt';
+  }
+
   // ---- Garage ----
   const previews = [];
   function buildGarage() {
@@ -699,6 +903,7 @@
       ui.rides.append(b);
       previews.push({ r, cv, b });
     }
+    buildIcons();
     refreshGarage();
   }
   function perkText(r) {
@@ -718,6 +923,7 @@
     ui.boxBtn.disabled = bank < BOX_COST;
     ui.boxNote.textContent = bank < BOX_COST ? 'You need ' + (BOX_COST - bank) + ' more coins.' : 'Common 50% · Uncommon 27% · Rare 14% · Epic 7% · Legendary 2%';
     ui.perk.textContent = perkText(rideById(rideId));
+    refreshIcons();
   }
   function selectRide(id, fromClick) {
     const r = rideById(id);
@@ -751,6 +957,46 @@
     }
   }
 
+  const iconPicks = [];
+  function iconText(ic) {
+    if (!ownedIcons.includes(ic.id)) return 'Not found yet. This is a ' + rarityOf(ic).name + ' icon. Open icon boxes to find it.';
+    return ic.name + ' (' + rarityOf(ic).name + ') floats above your car and shows next to your name on the leaderboard.';
+  }
+  function buildIcons() {
+    ui.icons.innerHTML = '';
+    iconPicks.length = 0;
+    for (const ic of ICONS) {
+      const b = document.createElement('button');
+      b.type = 'button'; b.className = 'icon-pick';
+      b.style.setProperty('--rar', rarityOf(ic).color);
+      const cv = document.createElement('canvas'); cv.width = 68; cv.height = 68;
+      const c = cv.getContext('2d'); if (c) drawIcon(c, ic.id, 34, 34, 32);
+      const nm = document.createElement('span');
+      b.append(cv, nm);
+      b.addEventListener('click', () => {
+        if (!ownedIcons.includes(ic.id)) { ui.iconPerk.textContent = iconText(ic); blip(180, 0.12, 'square', 0.04); return; }
+        iconId = ic.id; store.set('icon', iconId); blip(700, 0.05, 'triangle', 0.04); refreshIcons();
+      });
+      b.addEventListener('mouseenter', () => { ui.iconPerk.textContent = iconText(ic); });
+      b.addEventListener('mouseleave', () => { ui.iconPerk.textContent = iconText(iconById(iconId)); });
+      ui.icons.append(b);
+      iconPicks.push({ ic, b });
+    }
+  }
+  function refreshIcons() {
+    ui.iconCollected.textContent = ownedIcons.length + ' of ' + ICONS.length + ' collected';
+    for (const p of iconPicks) {
+      const have = ownedIcons.includes(p.ic.id);
+      p.b.classList.toggle('locked', !have);
+      p.b.setAttribute('aria-pressed', String(p.ic.id === iconId));
+      p.b.setAttribute('aria-label', have ? p.ic.name : 'Unknown ' + rarityOf(p.ic).name + ' icon');
+      p.b.querySelector('span').textContent = have ? p.ic.name : '???';
+    }
+    ui.iconPerk.textContent = iconText(iconById(iconId));
+    ui.iconBoxBtn.disabled = bank < ICON_BOX_COST;
+    ui.iconBoxNote.textContent = bank < ICON_BOX_COST ? 'You need ' + (ICON_BOX_COST - bank) + ' more coins.' : 'Same odds as the ride box.';
+  }
+
   // ---- Mystery box ----
   let reveal = null;
   function rollRarity() {
@@ -758,17 +1004,26 @@
     for (const x of RARITIES) { if ((r -= x.odds) <= 0) return x; }
     return RARITIES[0];
   }
-  function openBox() {
-    if (bank < BOX_COST || (reveal && reveal.phase === 'rolling')) return;
+  function openBox(kind = 'ride') {
+    const cost = kind === 'icon' ? ICON_BOX_COST : BOX_COST;
+    if (bank < cost || (reveal && reveal.phase === 'rolling')) return;
     initAudio();
-    bank -= BOX_COST;
+    bank -= cost;
     const rar = rollRarity();
-    const pool = RIDES.filter(r => r.rarity === rar.id);
-    const got = pool[Math.floor(Math.random() * pool.length)];
-    const dup = owns(got.id);
-    if (!dup) { owned.push(got.id); store.set('owned', owned); }
+    let got, dup;
+    if (kind === 'icon') {
+      const pool = ICONS.filter(i => i.rarity === rar.id);
+      got = pool[Math.floor(Math.random() * pool.length)];
+      dup = ownedIcons.includes(got.id);
+      if (!dup) { ownedIcons.push(got.id); store.set('icons', ownedIcons); }
+    } else {
+      const pool = RIDES.filter(r => r.rarity === rar.id);
+      got = pool[Math.floor(Math.random() * pool.length)];
+      dup = owns(got.id);
+      if (!dup) { owned.push(got.id); store.set('owned', owned); }
+    }
     store.set('bank', bank);
-    reveal = { phase: 'rolling', t: 0, ride: got, rar, dup };
+    reveal = { phase: 'rolling', t: 0, kind, cost, ride: kind === 'ride' ? got : null, icon: kind === 'icon' ? got : null, item: got, rar, dup };
     ui.boxScreen.hidden = false;
     ui.boxScreen.querySelector('.sign').style.setProperty('--rar', '#f6f1e4');
     ui.revealCube.hidden = false; ui.revealCanvas.hidden = true;
@@ -786,11 +1041,12 @@
     ui.revealCube.hidden = true; ui.revealCanvas.hidden = false;
     ui.revealInfo.hidden = false; ui.revealBtns.hidden = false;
     ui.revealRarity.textContent = R.rar.name.toUpperCase();
-    ui.revealName.textContent = R.ride.name;
-    ui.revealPerk.textContent = R.ride.perk;
-    ui.revealNote.textContent = R.dup ? 'You already have this one. Better luck next box!' : 'New ride added to your garage!';
-    ui.revealDrive.textContent = R.dup ? 'Drive the ' + R.ride.name : 'Drive it';
-    ui.revealAgain.disabled = bank < BOX_COST;
+    ui.revealName.textContent = R.item.name;
+    ui.revealPerk.textContent = R.kind === 'icon' ? 'A new face to show above your car and on the leaderboard.' : R.ride.perk;
+    ui.revealNote.textContent = R.dup ? 'You already have this one. Better luck next box!' : R.kind === 'icon' ? 'New icon added to your collection!' : 'New ride added to your garage!';
+    ui.revealDrive.textContent = R.kind === 'icon' ? 'Use this icon' : R.dup ? 'Drive the ' + R.ride.name : 'Drive it';
+    ui.revealAgain.textContent = 'Open another · ' + R.cost + ' coins';
+    ui.revealAgain.disabled = bank < R.cost;
     const tiers = RARITIES.indexOf(R.rar);
     [523, 659, 784, 1047, 1319].slice(0, 2 + tiers).forEach((f, i) => setTimeout(() => blip(f, 0.16, 'triangle', 0.06), i * 110));
     ui.revealDrive.focus();
@@ -804,6 +1060,13 @@
     const g = c.createRadialGradient(120, 110, 10, 120, 110, 110);
     g.addColorStop(0, reveal.rar.color + '66'); g.addColorStop(1, reveal.rar.color + '00');
     c.fillStyle = g; c.fillRect(0, 0, 240, 200);
+    if (reveal.kind === 'icon') {
+      const bob = Math.sin(time * 2.5) * 6;
+      c.fillStyle = 'rgba(0,0,0,0.2)'; c.beginPath(); c.ellipse(120, 176, 46, 10, 0, 0, Math.PI * 2); c.fill();
+      c.fillStyle = '#ffffff'; c.beginPath(); c.arc(120, 98 + bob, 66, 0, Math.PI * 2); c.fill();
+      drawIcon(c, reveal.icon.id, 120, 98 + bob, 60);
+      return;
+    }
     c.fillStyle = 'rgba(0,0,0,0.25)'; c.beginPath(); c.ellipse(120, 140, 70, 30, 0, 0, Math.PI * 2); c.fill();
     renderVehicle(c, reveal.ride.id, reveal.ride.hover ? 0.45 : 0, time, true, h => { c.save(); c.translate(120, 140 - h * 2); c.scale(1.9, 1.9 * 0.6); c.rotate(time * 1.2); }, 0, 0.7);
   }
@@ -897,12 +1160,17 @@
     targetA += seg.turn * Math.PI / 2;
     turns++;
     if (ride.shieldEvery && turns % ride.shieldEvery === 0) fx.shield = 15;
-    speed = Math.min(MAX_SPEED, speed + gainAt(speed));
+    if (turns <= SPEED_CAP_TURNS) speed = Math.min(MAX_SPEED, speed + gainAt(speed));
     topSpeed = Math.max(topSpeed, speed);
     if (segIdx > 3) { segs.splice(0, segIdx - 2); segIdx = 2; }
     updateHud();
     blip(660, 0.07, 'square', 0.05);
     setTimeout(() => blip(990, 0.09, 'square', 0.05), 70);
+    const zoneChange = ns.biome !== biome;
+    if (HAZARD_INTROS[turns] || turns === SPEED_CAP_TURNS) {
+      const big = HAZARD_INTROS[turns] || 'Top speed! Now it gets busier';
+      setTimeout(() => { if (state === 'play') showBanner(HAZARD_INTROS[turns] ? 'NEW HAZARD' : 'SPEED CAPPED', big); }, zoneChange ? 2900 : 0);
+    }
     if (ns.biome !== biome) {
       prevBiome = biome; biome = ns.biome; biomeT = 0;
       const B = BIOMES[biome];
@@ -1037,10 +1305,16 @@
     else if (k === 'm' || k === 'M') toggleMute();
   });
   ui.itemBtn.addEventListener('click', () => { initAudio(); useItem(); });
-  ui.boxBtn.addEventListener('click', openBox);
-  ui.revealAgain.addEventListener('click', openBox);
+  ui.boxBtn.addEventListener('click', () => openBox('ride'));
+  ui.iconBoxBtn.addEventListener('click', () => openBox('icon'));
+  ui.revealAgain.addEventListener('click', () => openBox(reveal ? reveal.kind : 'ride'));
   ui.revealBack.addEventListener('click', closeBox);
-  ui.revealDrive.addEventListener('click', () => { const id = reveal && reveal.ride.id; closeBox(); if (id) { selectRide(id, false); startGame(); } });
+  ui.revealDrive.addEventListener('click', () => {
+    const R = reveal; closeBox();
+    if (!R) return;
+    if (R.kind === 'icon') { iconId = R.icon.id; store.set('icon', iconId); refreshIcons(); }
+    else { selectRide(R.ride.id, false); startGame(); }
+  });
   canvas.addEventListener('pointerdown', e => {
     e.preventDefault();
     if (state !== 'play') return;
@@ -1070,6 +1344,7 @@
   // ---- Update ----
   function update(dt) {
     time += dt;
+    updateWeather(dt);
     biomeT = Math.min(1, biomeT + dt / 1.6);
     alt += ((BIOMES[biome].fly ? 1 : 0) - alt) * Math.min(1, dt * 1.6);
 
@@ -1081,7 +1356,7 @@
       updateFx(dt);
       let seg = segs[segIdx];
       if (arc) {
-        arc.d += effSpeed() * dt;
+        arc.d += effSpeed() * dt * 1.18;
         const { p, tan } = arcAt(arc);
         s = p[0]; lat = p[1]; latV = 0;
         carA = targetA + Math.atan2(tan[1], tan[0]); carV = 0;
@@ -1100,11 +1375,21 @@
         const hw = ride.w / 2 - 3, hl = ride.h / 2 - 4;
         for (const o of seg.obs) {
           if (o.gone) continue;
-          if (Math.abs(o.s - s) < hl + o.r && Math.abs(o.lane * LANE - lat) < hw + o.r) {
-            if (jumpH > 10 || (o.kind === 'hole' && ride.hover)) continue;
+          if (Math.abs(o.s - s) < hl + o.r && Math.abs(obsLat(o) - lat) < hw + o.r) {
+            if (jumpH > 10 || (ride.hover && (o.kind === 'hole' || o.kind === 'oil' || o.kind === 'spikes'))) continue;
+            if (o.kind === 'oil') {
+              if (!o.hit) {
+                o.hit = true;
+                let d = Math.random() < 0.5 ? -1 : 1;
+                if (lane + d < -1 || lane + d > 1) d = -d;
+                lane += d; latV += d * 240;
+                popText('OIL SLICK!'); blip(180, 0.35, 'sawtooth', 0.05);
+              }
+              continue;
+            }
             if (fx.turbo > 0 || fx.shield > 0) {
               o.gone = true;
-              const P = posOf(seg, o.s, o.lane * LANE);
+              const P = posOf(seg, o.s, obsLat(o));
               burst(P.x, P.y, obstacleColors(o.kind), 18, 260);
               shake = reduceMotion ? 0 : 3;
               blip(160, 0.12, 'sawtooth', 0.06);
@@ -1119,7 +1404,7 @@
             }
             if (ride.smash && ride.smash.includes(o.kind)) {
               o.gone = true;
-              const P = posOf(seg, o.s, o.lane * LANE);
+              const P = posOf(seg, o.s, obsLat(o));
               burst(P.x, P.y, obstacleColors(o.kind), 16, 240);
               shake = reduceMotion ? 0 : 3;
               speed = Math.max(ride.start, speed * 0.95);
@@ -1202,7 +1487,7 @@
     // Springs ease in and out, so turns start and finish softly
     if (state !== 'crash' && !arc) { carV += ((targetA - carA) * 36 - 12 * carV) * dt; carA += carV * dt; }
     else carV = 0;
-    camV += ((targetA - camA) * 9 - 6 * camV) * dt; camA += camV * dt;
+    camV += ((targetA - camA) * 13 - 7.2 * camV) * dt; camA += camV * dt;
     {
       // the camera drifts only part-way with lane changes
       const rv = dirOf(segs[segIdx].h + 1), q = Math.min(1, dt * 4);
@@ -1295,14 +1580,14 @@
         const bp = posOf(g, bx.s, bx.lane * LANE), p = proj(bp.x, bp.y, 0);
         if (!inView(p, 40)) continue;
         add(p.z, () => {
-          shadowFlat(bp.x, bp.y, 15, 0.22);
-          const bob = 16 + Math.sin(time * 3 + bx.s) * 3, rot = time * 1.6 + bx.s;
-          stack(bp.x, bp.y, rot, bob, bob + 26, h => {
-            ctx.fillStyle = `hsla(${(time * 120 + h * 9) % 360},85%,58%,0.92)`; ctx.fillRect(-13, -13, 26, 26);
+          shadowFlat(bp.x, bp.y, 20, 0.22);
+          const bob = 34 + Math.sin(time * 3 + bx.s) * 4, rot = time * 1.6 + bx.s;
+          stack(bp.x, bp.y, rot, bob, bob + 38, h => {
+            ctx.fillStyle = `hsla(${(time * 120 + h * 6) % 360},85%,58%,0.92)`; ctx.fillRect(-19, -19, 38, 38);
           });
-          place(ctx, bp.x, bp.y, bob + 27, rot);
-          ctx.fillStyle = `hsl(${(time * 120 + 250) % 360},90%,72%)`; ctx.fillRect(-13, -13, 26, 26);
-          ctx.fillStyle = '#ffffff'; ctx.font = '900 20px Overpass, system-ui, sans-serif';
+          place(ctx, bp.x, bp.y, bob + 39, rot);
+          ctx.fillStyle = `hsl(${(time * 120 + 250) % 360},90%,72%)`; ctx.fillRect(-19, -19, 38, 38);
+          ctx.fillStyle = '#ffffff'; ctx.font = '900 30px Overpass, system-ui, sans-serif';
           ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('?', 0, 1);
           ctx.textAlign = 'start'; ctx.textBaseline = 'alphabetic';
           ctx.restore();
@@ -1314,12 +1599,29 @@
   // ---- Windshield fly ----
   // Every so often a fly lands on the "windshield" (the screen) and a wiper sweeps it away.
   function updateGag(dt) {
-    if (gag) { gag.t += dt; if (gag.t > 3.1) gag = null; return; }
+    if (gag) { gag.t += dt; if (gag.t > 3.3) gag = null; return; }
     nextGag -= dt;
     if (nextGag <= 0) {
       nextGag = 25 + Math.random() * 25;
-      gag = { t: 0, x: 0.25 + Math.random() * 0.5, y: 0.25 + Math.random() * 0.3, from: Math.random() < 0.5 ? -1 : 1, wiped: false };
+      const swarm = Math.random() < 0.3;
+      const count = swarm ? 5 + Math.floor(Math.random() * 5) : 1;
+      gag = { t: 0, flies: Array.from({ length: count }, () => ({
+        x: 0.12 + Math.random() * 0.76, y: 0.15 + Math.random() * 0.45, from: Math.random() < 0.5 ? -1 : 1,
+        delay: swarm ? Math.random() * 0.6 : 0, size: swarm ? 0.75 + Math.random() * 0.5 : 1, wiped: false })) };
+      if (swarm) for (let i = 0; i < 6; i++) setTimeout(() => blip(170 + Math.random() * 60, 0.09, 'sawtooth', 0.02), i * 90);
     }
+  }
+  function drawFly(x, y, sz, ang, flap) {
+    ctx.save(); ctx.translate(x, y); ctx.rotate(ang);
+    ctx.fillStyle = 'rgba(210,230,255,0.55)';
+    ctx.beginPath(); ctx.ellipse(-sz * 0.9, -sz * 0.6, sz * 1.1, sz * (0.45 + 0.3 * flap), -0.5, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(sz * 0.9, -sz * 0.6, sz * 1.1, sz * (0.45 + 0.3 * flap), 0.5, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = '#111'; ctx.lineWidth = Math.max(1, sz * 0.14);
+    for (const sd of [-1, 1]) for (let k = -1; k <= 1; k++) { ctx.beginPath(); ctx.moveTo(0, k * sz * 0.4); ctx.lineTo(sd * sz * 1.3, k * sz * 0.7 + sz * 0.3); ctx.stroke(); }
+    ctx.fillStyle = '#15171a'; ctx.beginPath(); ctx.ellipse(0, 0, sz * 0.55, sz, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,0.18)'; ctx.beginPath(); ctx.ellipse(-sz * 0.15, -sz * 0.2, sz * 0.15, sz * 0.4, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#8a1f1f'; circle(ctx, -sz * 0.24, -sz * 0.85, sz * 0.28); circle(ctx, sz * 0.24, -sz * 0.85, sz * 0.28);
+    ctx.restore();
   }
   function drawGag() {
     if (!gag || !(state === 'play' || state === 'paused')) return;
@@ -1327,28 +1629,23 @@
     const pivotX = vw * 0.5, pivotY = vh * 1.08, armLen = Math.hypot(vw * 0.55, vh * 1.08) * 0.98;
     // wiper angle: 0 = lying flat to the left, PI = flat to the right
     let wa = null;
-    if (g.t > 1.6 && g.t < 2.3) wa = (g.t - 1.6) / 0.7 * Math.PI;
-    else if (g.t >= 2.3 && g.t < 3.0) wa = Math.PI - (g.t - 2.3) / 0.7 * Math.PI;
-    const fx0 = g.x * vw, fy0 = g.y * vh;
-    const flyAngle = Math.atan2(pivotY - fy0, pivotX - fx0);
-    if (wa !== null && wa >= flyAngle && !g.wiped) { g.wiped = true; blip(900, 0.05, 'triangle', 0.03); }
-    if (!g.wiped) {
-      let x = fx0, y = fy0;
-      if (g.t < 0.45) { const k = 1 - g.t / 0.45; x += g.from * k * vw * 0.5 + Math.sin(g.t * 40) * 12 * k; y -= k * vh * 0.2 + Math.cos(g.t * 33) * 10 * k; }
-      const sz = 7 * u * (g.t < 0.45 ? 1.4 - 0.4 * g.t / 0.45 : 1);
-      ctx.save(); ctx.translate(x, y); ctx.rotate(g.from * 0.4 + Math.sin(g.t * 3) * 0.1);
-      const flap = g.t < 0.45 ? Math.sin(g.t * 90) : (Math.sin(g.t * 6) > 0.95 ? 0.4 : 0);
-      ctx.fillStyle = 'rgba(210,230,255,0.55)';
-      ctx.beginPath(); ctx.ellipse(-sz * 0.9, -sz * 0.6, sz * 1.1, sz * (0.45 + 0.3 * flap), -0.5, 0, Math.PI * 2); ctx.fill();
-      ctx.beginPath(); ctx.ellipse(sz * 0.9, -sz * 0.6, sz * 1.1, sz * (0.45 + 0.3 * flap), 0.5, 0, Math.PI * 2); ctx.fill();
-      ctx.strokeStyle = '#111'; ctx.lineWidth = 1.2 * u;
-      for (const sd of [-1, 1]) for (let k = -1; k <= 1; k++) { ctx.beginPath(); ctx.moveTo(0, k * sz * 0.4); ctx.lineTo(sd * sz * 1.3, k * sz * 0.7 + sz * 0.3); ctx.stroke(); }
-      ctx.fillStyle = '#15171a'; ctx.beginPath(); ctx.ellipse(0, 0, sz * 0.55, sz, 0, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = '#7a1d1d'; circle(ctx, -sz * 0.22, -sz * 0.85, sz * 0.25); circle(ctx, sz * 0.22, -sz * 0.85, sz * 0.25);
-      ctx.restore();
-    } else if (wa !== null) {
-      ctx.fillStyle = 'rgba(40,40,40,0.18)';
-      ctx.beginPath(); ctx.ellipse(fx0, fy0, 10 * u, 4 * u, -flyAngle, 0, Math.PI * 2); ctx.fill();
+    if (g.t > 1.8 && g.t < 2.5) wa = (g.t - 1.8) / 0.7 * Math.PI;
+    else if (g.t >= 2.5 && g.t < 3.2) wa = Math.PI - (g.t - 2.5) / 0.7 * Math.PI;
+    for (const f of g.flies) {
+      const ft = g.t - f.delay;
+      if (ft < 0) continue;
+      const fx0 = f.x * vw, fy0 = f.y * vh;
+      const flyAngle = Math.atan2(pivotY - fy0, pivotX - fx0);
+      if (wa !== null && wa >= flyAngle && !f.wiped) { f.wiped = true; blip(900 + Math.random() * 200, 0.04, 'triangle', 0.025); }
+      if (!f.wiped) {
+        let x = fx0, y = fy0;
+        if (ft < 0.45) { const k = 1 - ft / 0.45; x += f.from * k * vw * 0.5 + Math.sin(ft * 40) * 14 * k; y -= k * vh * 0.2 + Math.cos(ft * 33) * 12 * k; }
+        const sz = 14 * u * f.size * (ft < 0.45 ? 1.4 - 0.4 * ft / 0.45 : 1);
+        drawFly(x, y, sz, f.from * 0.4 + Math.sin(ft * 3) * 0.1, ft < 0.45 ? Math.sin(ft * 90) : (Math.sin(ft * 6 + f.x * 9) > 0.95 ? 0.4 : 0));
+      } else if (wa !== null) {
+        ctx.fillStyle = 'rgba(40,40,40,0.2)';
+        ctx.beginPath(); ctx.ellipse(fx0, fy0, 16 * u * f.size, 6 * u * f.size, -flyAngle, 0, Math.PI * 2); ctx.fill();
+      }
     }
     if (wa !== null) {
       const ex = pivotX - Math.cos(wa) * armLen, ey = pivotY - Math.sin(wa) * armLen;
@@ -1493,8 +1790,8 @@
         const all = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         const num = v => { const n = Number(v); return Number.isFinite(n) ? n : 0; };
         mp.board = all.filter(r => num(r.best) > 0).sort((a, b) => num(b.best) - num(a.best)).slice(0, 25)
-          .map(r => ({ id: r.id, value: num(r.best), ride: r.ride }));
-        mp.boardSpeed = all.map(r => ({ id: r.id, value: num(r.bestMph || r.topMph), ride: r.mphRide || r.ride }))
+          .map(r => ({ id: r.id, value: num(r.best), ride: r.ride, icon: r.icon }));
+        mp.boardSpeed = all.map(r => ({ id: r.id, value: num(r.bestMph || r.topMph), ride: r.mphRide || r.ride, icon: r.icon }))
           .filter(r => r.value > 0).sort((a, b) => b.value - a.value).slice(0, 25);
         mp.boardState = 'ok';
         renderBoards();
@@ -1537,6 +1834,7 @@
         if (mine) li.className = 'me';
         const rank = document.createElement('span'); rank.className = 'rank'; rank.textContent = String(i + 1);
         const who = document.createElement('span'); who.className = 'who';
+        who.append(iconCanvas(typeof row.icon === 'string' ? row.icon : 'smile', 18));
         if (liveIds.has(row.id)) { const dot = document.createElement('i'); dot.className = 'live-dot'; dot.title = 'Driving now'; who.append(dot); }
         const nm = nameOf(row.id);
         who.append(document.createTextNode(mine ? (nm ? nm + ' (you)' : 'You') : (nm || 'Driver')));
@@ -1573,7 +1871,7 @@
     if (lastPresence >= 0 && time - lastPresence < 0.12) return;
     lastPresence = time;
     mp.room.presence({ track: TRACK, state, n: segs[segIdx].n, s: Math.round(s), lat: Math.round(lat),
-      v: Math.round(state === 'play' ? speed : 0), ride: ride.id, turns }).catch(() => {});
+      v: Math.round(state === 'play' ? speed : 0), ride: ride.id, icon: iconId, turns }).catch(() => {});
   }
 
   function postScore() {
@@ -1584,12 +1882,12 @@
     }
     const mine = mp.myDoc || {}, mph = toMph(topSpeed);
     const oldBest = Number(mine.best) || 0, oldMph = Number(mine.bestMph || mine.topMph) || 0;
-    if (turns <= oldBest && mph <= oldMph) return;
+    if (turns <= oldBest && mph <= oldMph && mine.icon === iconId) return;
     const prev = mp.myDoc;
     const doc = {
       best: Math.max(turns, oldBest), ride: turns > oldBest ? ride.id : (mine.ride || ride.id),
       bestMph: Math.max(mph, oldMph), mphRide: mph > oldMph ? ride.id : (mine.mphRide || mine.ride || ride.id),
-      at: Date.now()
+      icon: iconId, at: Date.now()
     };
     mp.myDoc = doc;
     mp.db.doc('scores/' + mp.myId).set(doc)
@@ -1619,7 +1917,8 @@
       const label = (nameOf(peer.by) || 'Driver') + ' · ' + Math.max(0, Math.floor(Number(q.turns) || 0));
       add(p.z, () => {
         renderVehicle(ctx, id, fly, time, false, h => place(ctx, P.x, P.y, h, g.h * Math.PI / 2), fly * FLY_LIFT, stepFor(p.k) * 1.2);
-        const t = proj(P.x, P.y, fly * FLY_LIFT + 46);
+        carBadge(P.x, P.y, fly * FLY_LIFT + 64, typeof q.icon === 'string' ? q.icon : 'smile');
+        const t = proj(P.x, P.y, fly * FLY_LIFT + 90);
         ctx.font = '700 12px Overpass, system-ui, sans-serif';
         const w = ctx.measureText(label).width + 14;
         ctx.fillStyle = 'rgba(15,20,30,0.75)'; rr(ctx, t.sx - w / 2, t.sy - 19, w, 19, 9.5); ctx.fill();
@@ -2090,7 +2389,7 @@
       }
       for (const o of g.obs) {
         if (o.gone) continue;
-        const op = posOf(g, o.s, o.lane * LANE), p = proj(op.x, op.y, 0);
+        const op = posOf(g, o.s, obsLat(o)), p = proj(op.x, op.y, 0);
         if (!inView(p, 80)) continue;
         add(p.z, () => drawObstacle(op.x, op.y, g.h * Math.PI / 2, o));
       }
@@ -2177,7 +2476,7 @@
         place(ctx, x, y, 40, rot);
         ctx.strokeStyle = '#2a2d33'; ctx.lineWidth = 4;
         ctx.beginPath(); ctx.moveTo(-r, -r); ctx.lineTo(r, r); ctx.moveTo(r, -r); ctx.lineTo(-r, r); ctx.stroke();
-        for (const [px, py] of [[-r, -r], [r, -r], [-r, r], [r, r]]) { ctx.fillStyle = 'rgba(200,210,220,0.6)'; circle(ctx, px, py, 8); ctx.fillStyle = '#2a2d33'; circle(ctx, px, py, 2); }
+        for (const [px, py] of [[-r, -r], [r, -r], [-r, r], [r, r]]) { ctx.fillStyle = 'rgba(200,210,220,0.6)'; circle(ctx, px, py, r * 0.5); ctx.fillStyle = '#2a2d33'; circle(ctx, px, py, 2); }
         ctx.fillStyle = '#e4572e'; circle(ctx, 0, 0, 6);
         ctx.restore();
         stack(x, y, rot, 34, 39, () => { ctx.fillStyle = '#3a3d44'; circle(ctx, 0, 0, 5); });
@@ -2292,6 +2591,29 @@
         sphere(x, y, time * 2, 32, r * 0.5, (h, rad) => { ctx.fillStyle = 'rgba(140,240,255,0.85)'; circle(ctx, 0, 0, rad); });
         place(ctx, x, y, 30, time * 2);
         for (let k = 0; k < 8; k++) { const a = k / 8 * Math.PI * 2; ctx.fillStyle = (k + Math.floor(time * 8)) % 2 ? '#ffe066' : '#ff5f6d'; circle(ctx, Math.cos(a) * r * 1.05, Math.sin(a) * r * 1.05, 2.5); }
+        ctx.restore();
+        break;
+      case 'oil': {
+        place(ctx, x, y, 0.5, base + o.rot);
+        ctx.fillStyle = '#0b0b10';
+        ctx.beginPath(); ctx.ellipse(0, 0, r * 1.25, r * 0.9, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.ellipse(r * 0.7, r * 0.5, r * 0.5, r * 0.35, 0.4, 0, Math.PI * 2); ctx.fill();
+        const g2 = ctx.createLinearGradient(-r, -r, r, r);
+        g2.addColorStop(0, 'rgba(120,80,255,0.35)'); g2.addColorStop(0.5, 'rgba(60,220,200,0.3)'); g2.addColorStop(1, 'rgba(255,200,80,0.3)');
+        ctx.fillStyle = g2; ctx.beginPath(); ctx.ellipse(-r * 0.2, -r * 0.15, r * 0.7, r * 0.4, 0.3, 0, Math.PI * 2); ctx.fill();
+        ctx.restore();
+        break;
+      }
+      case 'spikes':
+        stack(x, y, base, 0, 7, h => {
+          ctx.fillStyle = h < 2 ? '#2a2d33' : '#b8bec9';
+          ctx.fillRect(-26, -4, 52, 8);
+          if (h >= 2) { ctx.beginPath(); for (let k = -24; k <= 20; k += 8) { ctx.moveTo(k, 2); ctx.lineTo(k + 4, -8 + (h - 2) * 0.6); ctx.lineTo(k + 8, 2); } ctx.fill(); }
+        });
+        place(ctx, x, y, 7.5, base);
+        ctx.fillStyle = '#e8ecf2';
+        ctx.beginPath(); for (let k = -24; k <= 20; k += 8) { ctx.moveTo(k + 3, -4); ctx.lineTo(k + 4, -6); ctx.lineTo(k + 5, -4); } ctx.fill();
+        ctx.fillStyle = '#e4572e'; ctx.fillRect(-28, -5, 4, 10); ctx.fillRect(24, -5, 4, 10);
         ctx.restore();
         break;
       case 'hole':
@@ -2438,6 +2760,7 @@
       rr(ctx, -ride.w / 2 - 2, -ride.h / 2, ride.w + 4, ride.h + 2, 10); ctx.fill();
       ctx.restore();
       renderVehicle(ctx, ride.id, va, time, true, h => place(ctx, P.x, P.y, h, angle), lift, stepFor(p.k) * 0.8);
+      carBadge(P.x, P.y, lift + 64, iconId);
       if (fx.shield > 0 && (fx.shield > 2 || Math.sin(time * 20) > 0)) {
         billboard(P.x, P.y, lift + 18);
         const r = 44 + Math.sin(time * 5) * 2;
@@ -2552,18 +2875,7 @@
     ctx.globalAlpha = 1;
 
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    if (!reduceMotion && state === 'play' && speed > 480) {
-      const a = Math.min(0.14, (speed - 480) / 4000);
-      ctx.strokeStyle = `rgba(255,255,255,${a})`;
-      ctx.lineWidth = 2;
-      for (let i = 0; i < 18; i++) {
-        const x = hash(i, 99) * vw;
-        if (Math.abs(x - vw / 2) < vw * 0.2) continue;
-        const len = 40 + hash(i, 7) * 80;
-        const y = cam.hy + ((time * speed * 1.4 + hash(i, 3) * vh * 3) % (vh - cam.hy + len)) - len;
-        ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x, y + len); ctx.stroke();
-      }
-    }
+    drawWeather();
 
     drawGag();
     const night = BIOMES[biome].night ? biomeT : BIOMES[prevBiome].night ? 1 - biomeT : 0;

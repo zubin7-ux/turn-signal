@@ -34,7 +34,7 @@
     for (const r of data || []) {
       const nm = cleanName(r.name), key = nm.toLowerCase(), v = Math.max(0, Math.floor(Number(r[field]) || 0));
       if (!nm || !v || seen.has(key)) continue;
-      seen.add(key); rows.push({ name: nm, value: v, ride: r.ride });
+      seen.add(key); rows.push({ name: nm, value: v, ride: r.ride, icon: r.icon });
       if (rows.length >= 25) break;
     }
     return rows;
@@ -43,8 +43,8 @@
     if (!mp.sb) return;
     try {
       const [byTurns, bySpeed] = await Promise.all([
-        mp.sb.from('scores').select('name,turns,ride').order('turns', { ascending: false }).limit(300),
-        mp.sb.from('scores').select('name,top_mph,ride').not('top_mph', 'is', null).order('top_mph', { ascending: false }).limit(300)
+        mp.sb.from('scores').select('name,turns,ride,icon').order('turns', { ascending: false }).limit(300),
+        mp.sb.from('scores').select('name,top_mph,ride,icon').not('top_mph', 'is', null).order('top_mph', { ascending: false }).limit(300)
       ]);
       if (byTurns.error) throw byTurns.error;
       mp.board = bestPerName(byTurns.data, 'turns');
@@ -84,6 +84,7 @@
         if (mine) li.className = 'me';
         const rank = document.createElement('span'); rank.className = 'rank'; rank.textContent = String(i + 1);
         const who = document.createElement('span'); who.className = 'who';
+        who.append(iconCanvas(ICONS.some(x => x.id === row.icon) ? row.icon : 'smile', 18));
         if (liveNames.has(row.name.toLowerCase())) { const dot = document.createElement('i'); dot.className = 'live-dot'; dot.title = 'Driving now'; who.append(dot); }
         who.append(document.createTextNode(row.name + (mine ? ' (you)' : '')));
         const rd = RIDES.find(r => r.id === row.ride);
@@ -121,7 +122,7 @@
     if (!changed && (state !== 'play' || (lastPresence >= 0 && time - lastPresence < 0.33))) return;
     lastPresence = time; lastState = state;
     mp.chan.send({ type: 'broadcast', event: 'pos', payload: {
-      k: MY_KEY, name: myName(), state, track: TRACK, n: segs[segIdx].n, s: Math.round(s), lat: Math.round(lat),
+      k: MY_KEY, name: myName(), icon: iconId, state, track: TRACK, n: segs[segIdx].n, s: Math.round(s), lat: Math.round(lat),
       v: Math.round(state === 'play' ? speed : 0), ride: ride.id, turns } }).catch(() => {});
   }
 
@@ -133,7 +134,7 @@
     const key = 'posted.' + name.toLowerCase(), keyMph = 'postedMph.' + name.toLowerCase();
     const mph = toMph(topSpeed);
     if (turns <= store.get(key, 0) && mph <= store.get(keyMph, 0)) return;
-    mp.sb.from('scores').insert({ name, turns, ride: ride.id, top_mph: mph }).then(({ error }) => {
+    mp.sb.from('scores').insert({ name, turns, ride: ride.id, top_mph: mph, icon: iconId }).then(({ error }) => {
       if (error) mp.note = 'Your score could not be posted. Check your connection and try another run.';
       else { mp.note = ''; store.set(key, Math.max(turns, store.get(key, 0))); store.set(keyMph, Math.max(mph, store.get(keyMph, 0))); }
       loadBoard();
@@ -156,7 +157,8 @@
       const label = (cleanName(q.name) || 'Driver') + ' · ' + Math.max(0, Math.floor(Number(q.turns) || 0));
       add(p.z, () => {
         renderVehicle(ctx, id, fly, time, false, h => place(ctx, P.x, P.y, h, g.h * Math.PI / 2), fly * FLY_LIFT, stepFor(p.k) * 1.2);
-        const t = proj(P.x, P.y, fly * FLY_LIFT + 46);
+        carBadge(P.x, P.y, fly * FLY_LIFT + 64, typeof q.icon === 'string' ? q.icon : 'smile');
+        const t = proj(P.x, P.y, fly * FLY_LIFT + 90);
         ctx.font = '700 12px Overpass, system-ui, sans-serif';
         const w = ctx.measureText(label).width + 14;
         ctx.fillStyle = 'rgba(15,20,30,0.75)'; rr(ctx, t.sx - w / 2, t.sy - 19, w, 19, 9.5); ctx.fill();
