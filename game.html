@@ -176,7 +176,10 @@
     background: #0c5a3a; color: var(--sign-ink); border: 2px solid var(--caution); border-radius: 10px; padding: 8px 12px 6px 8px;
     font: 800 14px/1.1 "Overpass", system-ui, sans-serif; text-align: left;
   }
-  .mbox:disabled { opacity: .45; cursor: not-allowed; border-color: rgba(246,241,228,.35); }
+  .mbox:disabled { cursor: not-allowed; background: #3a4541; border-color: #56635d; color: rgba(246,241,228,.5); }
+  .mbox:disabled .mbox-cube { filter: grayscale(1); opacity: .45; }
+  .mbox:disabled small { color: rgba(246,241,228,.5); }
+  .ghost:disabled, .go:disabled { opacity: .4; cursor: not-allowed; }
   .mbox:not(:disabled):hover { background: #0e6844; }
   .mbox-text { display: grid; gap: 2px; }
   .mbox-text small { font: 700 11px/1 "Overpass Mono", monospace; color: var(--coin); }
@@ -189,7 +192,9 @@
   .box-note { font-size: 11px !important; opacity: .75; margin-top: -4px !important; }
   .reveal { max-width: 380px; border: 0; box-shadow: 0 0 0 4px var(--rar), 0 0 60px var(--rar), 0 24px 60px rgba(0,0,0,.45); transition: box-shadow .4s; }
   .reveal-stage { display: grid; place-items: center; min-height: 200px; }
-  .reveal-stage canvas { width: 240px; max-width: 100%; height: auto; aspect-ratio: 240 / 200; }
+  #confetti { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+  .reveal-stage canvas { transition: filter .3s;
+    width: 240px; max-width: 100%; height: auto; aspect-ratio: 240 / 200; }
   .reveal-cube { width: 110px; height: 110px; border-radius: 18px; font-size: 64px; animation: shake .15s linear infinite; }
   @keyframes shake { 0%, 100% { transform: rotate(-6deg) scale(1); } 50% { transform: rotate(6deg) scale(1.05); } }
   @media (prefers-reduced-motion: reduce) { .reveal-cube { animation: none; } }
@@ -264,6 +269,14 @@
 
   .stack { margin: auto; width: 100%; max-width: 860px; display: flex; flex-wrap: wrap; gap: 30px 20px; justify-content: center; align-items: flex-start; }
   .stack .sign { margin: 0; }
+  .stack.wide { max-width: 1320px; }
+  .menu-sign { max-width: 960px; flex: 1 1 560px; }
+  .menu-cols { display: grid; gap: 18px; }
+  .menu-main, .menu-side { display: grid; gap: 14px; align-content: start; min-width: 0; }
+  @media (min-width: 860px) {
+    .menu-cols { grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr); gap: 28px; align-items: start; }
+    .menu-side { border-left: 2px solid rgba(246,241,228,.25); padding-left: 26px; }
+  }
   .board {
     width: 100%; max-width: 340px;
     background: #1f4e9c; color: var(--sign-ink);
@@ -337,10 +350,12 @@
 <div class="banner" id="banner"><div><small id="bannerSmall">NOW ENTERING</small><b id="bannerBig">Dust Bowl</b></div></div>
 
 <div class="overlay" id="startScreen">
- <div class="stack">
-  <div class="sign">
+ <div class="stack wide">
+  <div class="sign menu-sign">
     <div class="tab"><span>EXIT 1</span></div>
     <div class="sign-inner">
+      <div class="menu-cols">
+        <div class="menu-main">
       <h1>
         <svg class="arrow-mark" viewBox="0 0 44 44" aria-hidden="true"><path d="M12 40V20a6 6 0 0 1 6-6h12" fill="none" stroke="#f6f1e4" stroke-width="6" stroke-linecap="round"/><path d="M27 4l12 10-12 10z" fill="#f6f1e4"/></svg>
         Turn Signal
@@ -354,7 +369,10 @@
         <li><span class="qbox" aria-hidden="true">?</span><span>Drive through a ? box for an item: shield, turbo, magnet or jump. Press <b>Space</b> or <b>↑</b> (or tap the item button) to use it.</span></li>
         <li><span class="coin-dot" aria-hidden="true"></span>Grab coins, then spend them on mystery boxes to find new rides.</li>
       </ul>
-      <div class="rule-rule"></div>
+      <button class="go" id="startBtn" type="button">Drive <small>Space</small></button>
+      <p style="font-size:13px;opacity:.8">On a phone or tablet, tap the left or right half of the screen. Press P to pause.</p>
+        </div>
+        <div class="menu-side">
       <div class="garage">
         <div class="garage-head"><span>YOUR GARAGE</span><span class="collected" id="collected"></span></div>
         <div class="rides" id="rides"></div>
@@ -373,8 +391,8 @@
         </div>
         <p class="box-note" id="iconBoxNote"></p>
       </div>
-      <button class="go" id="startBtn" type="button">Drive <small>Space</small></button>
-      <p style="font-size:13px;opacity:.8">On a phone or tablet, tap the left or right half of the screen. Press P to pause.</p>
+        </div>
+      </div>
     </div>
   </div>
   <section class="board" aria-label="High scores">
@@ -443,6 +461,8 @@
     </div>
   </div>
 </div>
+
+<canvas id="confetti" aria-hidden="true"></canvas>
 
 <div class="overlay" id="pauseScreen" hidden>
   <div class="sign" style="max-width:340px">
@@ -914,6 +934,7 @@
       p.b.querySelector('.ride-name').textContent = have ? p.r.name : '???';
     }
     ui.boxBtn.disabled = bank < BOX_COST;
+    ui.boxBtn.querySelector('small').textContent = bank < BOX_COST ? BOX_COST + ' coins · need ' + (BOX_COST - bank) + ' more' : BOX_COST + ' coins';
     ui.boxNote.textContent = bank < BOX_COST ? 'You need ' + (BOX_COST - bank) + ' more coins.' : 'Common 50% · Uncommon 27% · Rare 14% · Epic 7% · Legendary 2%';
     ui.perk.textContent = perkText(rideById(rideId));
     refreshIcons();
@@ -987,6 +1008,7 @@
     }
     ui.iconPerk.textContent = iconText(iconById(iconId));
     ui.iconBoxBtn.disabled = bank < ICON_BOX_COST;
+    ui.iconBoxBtn.querySelector('small').textContent = bank < ICON_BOX_COST ? ICON_BOX_COST + ' coins · need ' + (ICON_BOX_COST - bank) + ' more' : ICON_BOX_COST + ' coins';
     ui.iconBoxNote.textContent = bank < ICON_BOX_COST ? 'You need ' + (ICON_BOX_COST - bank) + ' more coins.' : 'Same odds as the ride box.';
   }
 
@@ -1030,7 +1052,10 @@
     const R = reveal;
     if (!R) return;
     R.phase = 'shown';
-    ui.boxScreen.querySelector('.sign').style.setProperty('--rar', R.rar.color);
+    ui.boxScreen.querySelector('.sign').style.setProperty('--rar', R.dup ? '#7d858c' : R.rar.color);
+    ui.revealRarity.style.color = R.rar.color;
+    ui.revealCanvas.style.filter = R.dup ? 'grayscale(1) brightness(.75)' : '';
+    if (!R.dup) burstConfetti(R.rar.color, RARITIES.indexOf(R.rar) >= 3);
     ui.revealCube.hidden = true; ui.revealCanvas.hidden = false;
     ui.revealInfo.hidden = false; ui.revealBtns.hidden = false;
     ui.revealRarity.textContent = R.rar.name.toUpperCase();
@@ -1044,6 +1069,34 @@
     [523, 659, 784, 1047, 1319].slice(0, 2 + tiers).forEach((f, i) => setTimeout(() => blip(f, 0.16, 'triangle', 0.06), i * 110));
     ui.revealDrive.focus();
   }
+  // ---- Confetti for new finds ----
+  const confettiCv = document.getElementById('confetti'), confetti = [];
+  let confettiLive = false;
+  function burstConfetti(color, big) {
+    const cols = [color, color, '#ff5f6d', '#f2b632', '#5be37d', '#4aa3ff', '#c07bff', '#ffffff'];
+    const n = reduceMotion ? 40 : big ? 240 : 140;
+    for (let i = 0; i < n; i++) {
+      confetti.push({ x: vw / 2 + (Math.random() - 0.5) * 160, y: vh * 0.38, vx: (Math.random() - 0.5) * 1100, vy: -350 - Math.random() * 750,
+        rot: Math.random() * 6, vr: (Math.random() - 0.5) * 16, w: 6 + Math.random() * 7, h: 3 + Math.random() * 4, c: cols[i % cols.length], life: 0 });
+    }
+  }
+  function drawConfetti(dt) {
+    const c = confettiCv.getContext('2d');
+    if (!confetti.length) { if (confettiLive) { c.setTransform(1, 0, 0, 1, 0, 0); c.clearRect(0, 0, confettiCv.width, confettiCv.height); confettiLive = false; } return; }
+    confettiLive = true;
+    if (confettiCv.width !== canvas.width || confettiCv.height !== canvas.height) { confettiCv.width = canvas.width; confettiCv.height = canvas.height; }
+    c.setTransform(dpr, 0, 0, dpr, 0, 0);
+    c.clearRect(0, 0, vw, vh);
+    for (const p of confetti) {
+      p.life += dt; p.vy += 1500 * dt; p.vx *= Math.exp(-1.4 * dt); p.vy = Math.min(p.vy, 420);
+      p.x += p.vx * dt; p.y += p.vy * dt; p.rot += p.vr * dt;
+      c.save(); c.translate(p.x, p.y); c.rotate(p.rot); c.scale(1, Math.cos(p.rot * 2.3));
+      c.fillStyle = p.c; c.globalAlpha = Math.min(1, (4 - p.life) / 0.8); c.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
+      c.restore();
+    }
+    for (let i = confetti.length - 1; i >= 0; i--) if (confetti[i].y > vh + 40 || confetti[i].life > 4) confetti.splice(i, 1);
+  }
+
   function closeBox() { reveal = null; ui.boxScreen.hidden = true; refreshGarage(); }
   function drawReveal() {
     if (!reveal || reveal.phase !== 'shown') return;
@@ -1054,14 +1107,15 @@
     g.addColorStop(0, reveal.rar.color + '66'); g.addColorStop(1, reveal.rar.color + '00');
     c.fillStyle = g; c.fillRect(0, 0, 240, 200);
     if (reveal.kind === 'icon') {
-      const bob = Math.sin(time * 2.5) * 6;
+      const bob = reveal.dup ? 0 : Math.sin(time * 2.5) * 6;
       c.fillStyle = 'rgba(0,0,0,0.2)'; c.beginPath(); c.ellipse(120, 176, 46, 10, 0, 0, Math.PI * 2); c.fill();
       c.fillStyle = '#ffffff'; c.beginPath(); c.arc(120, 98 + bob, 66, 0, Math.PI * 2); c.fill();
       drawIcon(c, reveal.icon.id, 120, 98 + bob, 60);
       return;
     }
+    const spin = reveal.dup ? 0.7 : time * 1.2;
     c.fillStyle = 'rgba(0,0,0,0.25)'; c.beginPath(); c.ellipse(120, 140, 70, 30, 0, 0, Math.PI * 2); c.fill();
-    renderVehicle(c, reveal.ride.id, reveal.ride.hover ? 0.45 : 0, time, true, h => { c.save(); c.translate(120, 140 - h * 2); c.scale(1.9, 1.9 * 0.6); c.rotate(time * 1.2); }, 0, 0.7, iconId, previewHead(c, 120, 140, 2, 1.9, 0.6, time * 1.2, iconId));
+    renderVehicle(c, reveal.ride.id, reveal.ride.hover ? 0.45 : 0, time, true, h => { c.save(); c.translate(120, 140 - h * 2); c.scale(1.9, 1.9 * 0.6); c.rotate(spin); }, 0, 0.7, iconId, previewHead(c, 120, 140, 2, 1.9, 0.6, spin, iconId));
   }
 
   // ---- Actions ----
@@ -2942,6 +2996,7 @@
     draw();
     if (state === 'menu') drawPreviews();
     drawReveal();
+    drawConfetti(dt);
     if (time - lastLive > 0.5 || lastLive < 0) { lastLive = time; renderLive(); }
     renderItem(false);
     requestAnimationFrame(frame);
