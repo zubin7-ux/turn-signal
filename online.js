@@ -156,9 +156,9 @@
       const fly = BIOMES[g.biome].fly ? 1 : 0;
       const label = (cleanName(q.name) || 'Driver') + ' · ' + Math.max(0, Math.floor(Number(q.turns) || 0));
       add(p.z, () => {
-        renderVehicle(ctx, id, fly, time, false, h => place(ctx, P.x, P.y, h, g.h * Math.PI / 2), fly * FLY_LIFT, stepFor(p.k) * 1.2);
-        carBadge(P.x, P.y, fly * FLY_LIFT + 64, typeof q.icon === 'string' ? q.icon : 'smile');
-        const t = proj(P.x, P.y, fly * FLY_LIFT + 90);
+        const gi = typeof q.icon === 'string' ? q.icon : 'smile';
+        renderVehicle(ctx, id, fly, time, false, h => place(ctx, P.x, P.y, h, g.h * Math.PI / 2), fly * FLY_LIFT, stepFor(p.k) * 1.2, gi, worldHead(P, g.h * Math.PI / 2, gi));
+        const t = proj(P.x, P.y, fly * FLY_LIFT + 50);
         ctx.font = '700 12px Overpass, system-ui, sans-serif';
         const w = ctx.measureText(label).width + 14;
         ctx.fillStyle = 'rgba(15,20,30,0.75)'; rr(ctx, t.sx - w / 2, t.sy - 19, w, 19, 9.5); ctx.fill();

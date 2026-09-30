@@ -223,7 +223,7 @@
     display: grid; justify-items: center; gap: 4px;
     font: 800 10px/1.1 "Overpass", system-ui, sans-serif; letter-spacing: .04em; text-transform: uppercase;
   }
-  .ride canvas { width: 100%; max-width: 50px; height: auto; aspect-ratio: 1; display: block; }
+  .ride canvas { width: 100%; max-width: 60px; height: auto; aspect-ratio: 1; display: block; }
   .ride:hover { border-color: rgba(246,241,228,.6); }
   .ride[aria-pressed="true"] { border-color: var(--caution); background: #0c5a3a; box-shadow: inset 0 0 0 1px var(--caution); }
   .ride.locked canvas { opacity: .3; filter: grayscale(1); }
@@ -351,7 +351,7 @@
         <li><span class="keys"><kbd>←</kbd><kbd>→</kbd></span>Change lanes to dodge whatever is in the road, holes included. Steer off the edge and your run is over.</li>
         <li><span class="keys"><kbd>←</kbd><kbd>→</kbd></span>Turn only once you are inside the corner box. Too early or too late and you crash. Turning early in the box puts you in the near lane, late in the far lane.</li>
         <li><span class="target-dot" aria-hidden="true"></span>A red target hunts for you. When it locks on, get out of that lane before the torpedo lands.</li>
-        <li><span class="qbox" aria-hidden="true">?</span>Drive through a ? box for an item: shield, turbo, magnet or jump. Press <b>Space</b> or <b>↑</b> (or tap the item button) to use it.</li>
+        <li><span class="qbox" aria-hidden="true">?</span><span>Drive through a ? box for an item: shield, turbo, magnet or jump. Press <b>Space</b> or <b>↑</b> (or tap the item button) to use it.</span></li>
         <li><span class="coin-dot" aria-hidden="true"></span>Grab coins, then spend them on mystery boxes to find new rides.</li>
       </ul>
       <div class="rule-rule"></div>
@@ -748,6 +748,8 @@
     { id: 'unicorn', name: 'Unicorn', rarity: 'legendary' }
   ];
   const ICON_BOX_COST = 30;
+  // each character's shirt, so every driver looks different
+  const SHIRTS = { smile: '#4aa3ff', frog: '#2f6b22', cat: '#e4572e', dog: '#7a4a24', panda: '#1b1c20', robot: '#6b7280', ghost: '#c9cfe0', alien: '#6b4bd6', ninja: '#1b1c20', pirate: '#8c3b3b', astro: '#f4f6fa', dragon: '#3fae5a', skull: '#2a2a2a', king: '#8b1a1a', unicorn: '#f7a8c8' };
   const iconById = id => ICONS.find(i => i.id === id) || ICONS[0];
   let ownedIcons = store.get('icons', ['smile']);
   if (!Array.isArray(ownedIcons)) ownedIcons = ['smile'];
@@ -827,15 +829,6 @@
       }
     }
     c.restore();
-  }
-
-  // a round badge that floats above a car
-  function carBadge(x, y, h, id) {
-    billboard(x, y, h);
-    ctx.fillStyle = 'rgba(15,20,30,0.6)'; circle(ctx, 0, 0, 19);
-    ctx.fillStyle = '#ffffff'; circle(ctx, 0, 0, 16.5);
-    drawIcon(ctx, id, 0, 0, 15);
-    ctx.restore();
   }
 
   // a small canvas of an icon, for lists
@@ -944,8 +937,8 @@
       c.clearRect(0, 0, 120, 120);
       const have = owns(p.r.id), sel = p.r.id === rideId;
       const rot = sel ? time * 0.9 : 0.7;
-      c.fillStyle = 'rgba(0,0,0,0.25)'; c.beginPath(); c.ellipse(60, 84, 42, 20, 0, 0, Math.PI * 2); c.fill();
-      renderVehicle(c, p.r.id, p.r.hover ? 0.45 : 0, time, sel, h => { c.save(); c.translate(60, 84 - h * 1.25); c.scale(1.15, 1.15 * 0.6); c.rotate(rot); }, 0, 1);
+      c.fillStyle = 'rgba(0,0,0,0.25)'; c.beginPath(); c.ellipse(60, 88, 50, 22, 0, 0, Math.PI * 2); c.fill();
+      renderVehicle(c, p.r.id, p.r.hover ? 0.45 : 0, time, sel, h => { c.save(); c.translate(60, 88 - h * 1.5); c.scale(1.4, 1.4 * 0.6); c.rotate(rot); }, 0, 1, have ? iconId : null, have ? previewHead(c, 60, 88, 1.5, 1.4, 0.6, rot, iconId) : null);
       if (!have) {
         c.setTransform(1, 0, 0, 1, 0, 0);
         c.globalCompositeOperation = 'source-atop';
@@ -960,7 +953,7 @@
   const iconPicks = [];
   function iconText(ic) {
     if (!ownedIcons.includes(ic.id)) return 'Not found yet. This is a ' + rarityOf(ic).name + ' icon. Open icon boxes to find it.';
-    return ic.name + ' (' + rarityOf(ic).name + ') floats above your car and shows next to your name on the leaderboard.';
+    return ic.name + ' (' + rarityOf(ic).name + ') drives every car you own and shows next to your name on the leaderboard.';
   }
   function buildIcons() {
     ui.icons.innerHTML = '';
@@ -1042,7 +1035,7 @@
     ui.revealInfo.hidden = false; ui.revealBtns.hidden = false;
     ui.revealRarity.textContent = R.rar.name.toUpperCase();
     ui.revealName.textContent = R.item.name;
-    ui.revealPerk.textContent = R.kind === 'icon' ? 'A new face to show above your car and on the leaderboard.' : R.ride.perk;
+    ui.revealPerk.textContent = R.kind === 'icon' ? 'Your new driver! They ride in every car and show next to your name on the leaderboard.' : R.ride.perk;
     ui.revealNote.textContent = R.dup ? 'You already have this one. Better luck next box!' : R.kind === 'icon' ? 'New icon added to your collection!' : 'New ride added to your garage!';
     ui.revealDrive.textContent = R.kind === 'icon' ? 'Use this icon' : R.dup ? 'Drive the ' + R.ride.name : 'Drive it';
     ui.revealAgain.textContent = 'Open another · ' + R.cost + ' coins';
@@ -1068,7 +1061,7 @@
       return;
     }
     c.fillStyle = 'rgba(0,0,0,0.25)'; c.beginPath(); c.ellipse(120, 140, 70, 30, 0, 0, Math.PI * 2); c.fill();
-    renderVehicle(c, reveal.ride.id, reveal.ride.hover ? 0.45 : 0, time, true, h => { c.save(); c.translate(120, 140 - h * 2); c.scale(1.9, 1.9 * 0.6); c.rotate(time * 1.2); }, 0, 0.7);
+    renderVehicle(c, reveal.ride.id, reveal.ride.hover ? 0.45 : 0, time, true, h => { c.save(); c.translate(120, 140 - h * 2); c.scale(1.9, 1.9 * 0.6); c.rotate(time * 1.2); }, 0, 0.7, iconId, previewHead(c, 120, 140, 2, 1.9, 0.6, time * 1.2, iconId));
   }
 
   // ---- Actions ----
@@ -1916,9 +1909,9 @@
       const fly = BIOMES[g.biome].fly ? 1 : 0;
       const label = (nameOf(peer.by) || 'Driver') + ' · ' + Math.max(0, Math.floor(Number(q.turns) || 0));
       add(p.z, () => {
-        renderVehicle(ctx, id, fly, time, false, h => place(ctx, P.x, P.y, h, g.h * Math.PI / 2), fly * FLY_LIFT, stepFor(p.k) * 1.2);
-        carBadge(P.x, P.y, fly * FLY_LIFT + 64, typeof q.icon === 'string' ? q.icon : 'smile');
-        const t = proj(P.x, P.y, fly * FLY_LIFT + 90);
+        const gi = typeof q.icon === 'string' ? q.icon : 'smile';
+        renderVehicle(ctx, id, fly, time, false, h => place(ctx, P.x, P.y, h, g.h * Math.PI / 2), fly * FLY_LIFT, stepFor(p.k) * 1.2, gi, worldHead(P, g.h * Math.PI / 2, gi));
+        const t = proj(P.x, P.y, fly * FLY_LIFT + 50);
         ctx.font = '700 12px Overpass, system-ui, sans-serif';
         const w = ctx.measureText(label).width + 14;
         ctx.fillStyle = 'rgba(15,20,30,0.75)'; rr(ctx, t.sx - w / 2, t.sy - 19, w, 19, 9.5); ctx.fill();
@@ -2663,11 +2656,11 @@
       const cb = r.cab, x0 = -hw + cb.inset + 2, wR = r.w - cb.inset * 2 - 4, y0 = cb.y + 6, lR = cb.len - 10;
       c.fillStyle = r.roof; rr(c, x0, y0, wR, lR, 4); c.fill();
       if (m === 'roadster' && r.stripe) { c.fillStyle = r.stripe; c.fillRect(-6, y0, 4, lR); c.fillRect(2, y0, 4, lR); }
-      if (r.sign) { c.fillStyle = '#fff7d6'; rr(c, -8, y0 + lR / 2 - 4, 16, 8, 2); c.fill(); c.fillStyle = '#15171a'; c.fillRect(-5, y0 + lR / 2 - 1, 10, 2); }
+      if (r.sign) { c.fillStyle = '#fff7d6'; rr(c, -8, y0, 16, 7, 2); c.fill(); c.fillStyle = '#15171a'; c.fillRect(-5, y0 + 2.5, 10, 2); }
       if (r.lights) {
         const on = lively ? Math.sin(t * 16) > 0 : true;
-        c.fillStyle = on ? '#ff3b3b' : '#6a1d1d'; rr(c, -12, y0 + lR / 2 - 3, 12, 6, 2); c.fill();
-        c.fillStyle = on ? '#244a8a' : '#3b8bff'; rr(c, 0, y0 + lR / 2 - 3, 12, 6, 2); c.fill();
+        c.fillStyle = on ? '#ff3b3b' : '#6a1d1d'; rr(c, -12, y0, 12, 5, 2); c.fill();
+        c.fillStyle = on ? '#244a8a' : '#3b8bff'; rr(c, 0, y0, 12, 5, 2); c.fill();
       }
       return;
     }
@@ -2711,7 +2704,7 @@
     else { const lx = (m === 'monster' ? hw - 8 : hw) - 7; c.fillRect(-lx - 3, -hh + (m === 'monster' ? 7 : 1), 6, 3); c.fillRect(lx - 3, -hh + (m === 'monster' ? 7 : 1), 6, 3); }
   }
 
-  function renderVehicle(c, id, a, t, lively, placeAt, lift, step) {
+  function renderVehicle(c, id, a, t, lively, placeAt, lift, step, icon, headAt) {
     const r = rideById(id), m = r.model;
     const base = c.globalAlpha;
     const wheelA = 1 - Math.min(1, a * 1.5);
@@ -2735,18 +2728,73 @@
       c.restore();
     }
     placeAt(lift + r.hi); drawVehicle(c, id, a, t, lively, 'top'); c.restore();
+    // the driver's head is their character icon; headAt draws it upright (facing the camera)
+    const head = headAt || ((h, sy, rad) => { placeAt(h); drawIcon(c, icon, 0, sy, rad); c.restore(); });
+    const shirt = SHIRTS[icon] || '#4aa3ff';
     if (r.cab) {
-      for (let h = 0; h < r.cab.h; h += step) {
-        placeAt(lift + r.hi + h); drawVehicle(c, id, a, t, lively, 'cabin');
-        c.fillStyle = h < 2 ? r.roof : '#1f2c38'; c.fill(); c.restore();
+      // convertible: open cockpit, windshield, seats, driver
+      const cb = r.cab, ix = r.w / 2 - cb.inset - 1, sy = cb.y + cb.len * 0.58;
+      placeAt(lift + r.hi + 0.3);
+      c.fillStyle = '#23262c'; rr(c, -ix, cb.y + 4, ix * 2, cb.len - 4, 5); c.fill();
+      c.fillStyle = '#5a3d26'; rr(c, -ix + 2, sy - 5, ix - 3, 12, 3); c.fill(); rr(c, 1, sy - 5, ix - 3, 12, 3); c.fill();
+      c.restore();
+      for (let h = 0; h < 7; h += step) { placeAt(lift + r.hi + h); c.fillStyle = 'rgba(170,215,240,0.75)'; c.fillRect(-ix, cb.y + 2, ix * 2, 2.5); c.restore(); }
+      if (m === 'monster' || r.lights) {
+        for (let h = 0; h < 11; h += step) { placeAt(lift + r.hi + h); c.fillStyle = '#2a2d33'; c.fillRect(-ix, sy + 8, 3, 3); c.fillRect(ix - 3, sy + 8, 3, 3); c.restore(); }
+        placeAt(lift + r.hi + 11); c.fillStyle = '#2a2d33'; c.fillRect(-ix, sy + 8, ix * 2, 3);
+        if (r.lights) {
+          const on = lively ? Math.sin(t * 16) > 0 : true;
+          c.fillStyle = on ? '#ff3b3b' : '#6a1d1d'; rr(c, -12, sy + 7, 12, 5, 2); c.fill();
+          c.fillStyle = on ? '#244a8a' : '#3b8bff'; rr(c, 0, sy + 7, 12, 5, 2); c.fill();
+        }
+        c.restore();
       }
-      placeAt(lift + r.hi + r.cab.h); drawVehicle(c, id, a, t, lively, 'roof'); c.restore();
+      if (r.sign) {
+        const ty = r.h / 2 - 11;
+        for (let h = 0; h < 6; h += step) { placeAt(lift + r.hi + h); c.fillStyle = '#e8dcae'; rr(c, -8, ty, 16, 6, 2); c.fill(); c.restore(); }
+        placeAt(lift + r.hi + 6); c.fillStyle = '#fff7d6'; rr(c, -8, ty, 16, 6, 2); c.fill(); c.fillStyle = '#15171a'; c.fillRect(-5, ty + 2, 10, 2); c.restore();
+      }
+      if (icon) {
+        placeAt(lift + r.hi + 3); c.strokeStyle = '#15171a'; c.lineWidth = 2; c.beginPath(); c.ellipse(0, sy - 9, 5, 2.5, 0, 0, Math.PI * 2); c.stroke(); c.restore();
+        for (let h = 0; h < 9; h += step) {
+          placeAt(lift + r.hi + h); c.beginPath(); c.ellipse(0, sy, 8 - h * 0.25, 5.5, 0, 0, Math.PI * 2);
+          c.fillStyle = shirt; c.fill(); c.fillStyle = `rgba(0,0,0,${0.3 * (1 - h / 9)})`; c.fill(); c.restore();
+        }
+        head(lift + r.hi + 9, sy, 8);
+      }
     } else {
-      for (let h = 0; h < 12; h += step) { placeAt(lift + r.hi + h); c.fillStyle = '#2a2d33'; c.beginPath(); c.ellipse(0, 4, 7, 6, 0, 0, Math.PI * 2); c.fill(); c.restore(); }
-      for (let h = 0; h < 8; h += step) { placeAt(lift + r.hi + 12 + h); c.fillStyle = h > 5 ? '#ffffff' : '#e8e3d6'; circle(c, 0, 0, 6.5 - Math.max(0, h - 4) * 0.9); c.restore(); }
-      placeAt(lift + r.hi + 18); c.fillStyle = '#1f2c38'; c.beginPath(); c.arc(0, 0, 5, Math.PI * 1.15, Math.PI * 1.85); c.lineTo(0, 0); c.fill(); c.restore();
+      for (let h = 0; h < 12; h += step) {
+        placeAt(lift + r.hi + h); c.beginPath(); c.ellipse(0, 4, 7, 6, 0, 0, Math.PI * 2);
+        c.fillStyle = icon ? shirt : '#2a2d33'; c.fill(); c.fillStyle = `rgba(0,0,0,${0.3 * (1 - h / 12)})`; c.fill(); c.restore();
+      }
+      if (icon) head(lift + r.hi + 12, 2, 7.5);
+      else {
+        for (let h = 0; h < 8; h += step) { placeAt(lift + r.hi + 12 + h); c.fillStyle = h > 5 ? '#ffffff' : '#e8e3d6'; circle(c, 0, 0, 6.5 - Math.max(0, h - 4) * 0.9); c.restore(); }
+        placeAt(lift + r.hi + 18); c.fillStyle = '#1f2c38'; c.beginPath(); c.arc(0, 0, 5, Math.PI * 1.15, Math.PI * 1.85); c.lineTo(0, 0); c.fill(); c.restore();
+      }
     }
   }
+
+  // Heads for canvas previews: undo the preview's spin and squash so faces stay upright
+  function previewHead(c, ox, oy, hs, sc, squash, rot, icon) {
+    return (h, sy, rad) => {
+      c.save(); c.translate(ox, oy - h * hs); c.scale(sc, sc * squash); c.rotate(rot);
+      c.translate(0, sy); c.rotate(-rot); c.scale(1, 1 / squash);
+      drawIcon(c, icon, 0, -rad * 0.8, rad * 1.1); c.restore();
+    };
+  }
+  // Heads in the 3D world: an upright face at the driver's seat
+  function worldHead(P, angle, icon) {
+    const f = [Math.sin(angle), -Math.cos(angle)];
+    return (h, sy, rad) => {
+      const wx = P.x - f[0] * sy, wy = P.y - f[1] * sy;
+      billboard(wx, wy, h);
+      ctx.fillStyle = 'rgba(0,0,0,0.35)'; circle(ctx, 0, -rad * 0.9, rad + 1.2);
+      drawIcon(ctx, icon, 0, -rad * 0.9, rad);
+      ctx.restore();
+    };
+  }
+
 
 
 
@@ -2759,8 +2807,7 @@
       ctx.fillStyle = `rgba(0,0,0,${0.32 - alt * 0.06})`;
       rr(ctx, -ride.w / 2 - 2, -ride.h / 2, ride.w + 4, ride.h + 2, 10); ctx.fill();
       ctx.restore();
-      renderVehicle(ctx, ride.id, va, time, true, h => place(ctx, P.x, P.y, h, angle), lift, stepFor(p.k) * 0.8);
-      carBadge(P.x, P.y, lift + 64, iconId);
+      renderVehicle(ctx, ride.id, va, time, true, h => place(ctx, P.x, P.y, h, angle), lift, stepFor(p.k) * 0.8, iconId, worldHead(P, angle, iconId));
       if (fx.shield > 0 && (fx.shield > 2 || Math.sin(time * 20) > 0)) {
         billboard(P.x, P.y, lift + 18);
         const r = 44 + Math.sin(time * 5) * 2;
