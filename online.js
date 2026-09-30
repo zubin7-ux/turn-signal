@@ -2,7 +2,7 @@
   // Each run is its own road, so ghost cars only appear when two players share a seed; the live list always works.
   const SUPABASE_URL = '%%SUPABASE_URL%%', SUPABASE_KEY = '%%SUPABASE_KEY%%';
   const MY_KEY = Math.random().toString(36).slice(2, 12);
-  let mp = { sb: null, chan: null, ready: false, board: [], boardState: 'loading', peers: new Map(), note: '' };
+  let mp = { sb: null, chan: null, ready: false, board: [], boardSpeed: [], boardState: 'loading', peers: new Map(), note: '' };
   let lastPresence = -1, lastLive = -1, lastState = '';
 
   const nameInput = $('playerName');
@@ -28,19 +28,28 @@
   }
   initOnline();
 
+  // Best row per name, for one column
+  function bestPerName(data, field) {
+    const seen = new Set(), rows = [];
+    for (const r of data || []) {
+      const nm = cleanName(r.name), key = nm.toLowerCase(), v = Math.max(0, Math.floor(Number(r[field]) || 0));
+      if (!nm || !v || seen.has(key)) continue;
+      seen.add(key); rows.push({ name: nm, value: v, ride: r.ride });
+      if (rows.length >= 25) break;
+    }
+    return rows;
+  }
   async function loadBoard() {
     if (!mp.sb) return;
     try {
-      const { data, error } = await mp.sb.from('scores').select('name,turns,ride').order('turns', { ascending: false }).limit(300);
-      if (error) throw error;
-      const seen = new Set(), rows = [];
-      for (const r of data || []) {
-        const nm = cleanName(r.name), key = nm.toLowerCase();
-        if (!nm || seen.has(key)) continue;
-        seen.add(key); rows.push({ name: nm, turns: Math.max(0, Math.floor(Number(r.turns) || 0)), ride: r.ride });
-        if (rows.length >= 25) break;
-      }
-      mp.board = rows; mp.boardState = 'ok';
+      const [byTurns, bySpeed] = await Promise.all([
+        mp.sb.from('scores').select('name,turns,ride').order('turns', { ascending: false }).limit(300),
+        mp.sb.from('scores').select('name,top_mph,ride').not('top_mph', 'is', null).order('top_mph', { ascending: false }).limit(300)
+      ]);
+      if (byTurns.error) throw byTurns.error;
+      mp.board = bestPerName(byTurns.data, 'turns');
+      mp.boardSpeed = bySpeed.error ? [] : bestPerName(bySpeed.data, 'top_mph');
+      mp.boardState = 'ok';
     } catch (e) { if (mp.boardState !== 'ok') mp.boardState = 'off'; }
     renderBoards();
   }
@@ -56,6 +65,7 @@
 
   function renderBoards() {
     const drivers = livePeers();
+    const rows = boardMode === 'speed' ? mp.boardSpeed : mp.board;
     const me = myName().toLowerCase();
     const liveNames = new Set(drivers.map(p => cleanName(p.name).toLowerCase()).filter(Boolean));
     for (const el of document.querySelectorAll('.board')) {
@@ -66,9 +76,9 @@
       list.textContent = '';
       sub.textContent = mp.boardState === 'loading' ? 'Loading scores…'
         : mp.boardState !== 'ok' ? 'The leaderboard is offline right now. You can still play.'
-        : !mp.board.length ? 'No scores yet. Finish a run to post the first one.'
-        : 'Best run for each name.';
-      mp.board.forEach((row, i) => {
+        : !rows.length ? 'No scores yet. Finish a run to post the first one.'
+        : boardMode === 'speed' ? 'Fastest top speed for each name.' : 'Most turns for each name.';
+      rows.forEach((row, i) => {
         const li = document.createElement('li');
         const mine = me && row.name.toLowerCase() === me;
         if (mine) li.className = 'me';
@@ -78,7 +88,8 @@
         who.append(document.createTextNode(row.name + (mine ? ' (you)' : '')));
         const rd = RIDES.find(r => r.id === row.ride);
         if (rd) { const sm = document.createElement('small'); sm.textContent = rd.name; who.append(sm); }
-        const pts = document.createElement('span'); pts.className = 'pts'; pts.textContent = String(row.turns);
+        const pts = document.createElement('span'); pts.className = 'pts'; pts.textContent = String(row.value);
+        if (boardMode === 'speed') { const u = document.createElement('small'); u.textContent = 'mph'; pts.append(u); }
         li.append(rank, who, pts);
         list.append(li);
       });
@@ -119,11 +130,12 @@
     const name = myName();
     if (!name) { mp.note = 'Type a name on the start screen to post your scores.'; renderBoards(); return; }
     if (!mp.sb) return;
-    const key = 'posted.' + name.toLowerCase();
-    if (turns <= store.get(key, 0)) return;
-    mp.sb.from('scores').insert({ name, turns, ride: ride.id }).then(({ error }) => {
+    const key = 'posted.' + name.toLowerCase(), keyMph = 'postedMph.' + name.toLowerCase();
+    const mph = toMph(topSpeed);
+    if (turns <= store.get(key, 0) && mph <= store.get(keyMph, 0)) return;
+    mp.sb.from('scores').insert({ name, turns, ride: ride.id, top_mph: mph }).then(({ error }) => {
       if (error) mp.note = 'Your score could not be posted. Check your connection and try another run.';
-      else { mp.note = ''; store.set(key, turns); }
+      else { mp.note = ''; store.set(key, Math.max(turns, store.get(key, 0))); store.set(keyMph, Math.max(mph, store.get(keyMph, 0))); }
       loadBoard();
     });
   }
