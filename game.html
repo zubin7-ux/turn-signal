@@ -74,21 +74,21 @@
   .cue.hold { background: #e9e4d6; color: #4a4d52; border-color: #4a4d52; }
 
   .pop {
-    position: fixed; left: 50%; top: 36%;
-    font-weight: 900; font-style: italic; font-size: 44px;
+    position: fixed; left: 50%; top: calc(74px + env(safe-area-inset-top, 0px));
+    font-weight: 900; font-style: italic; font-size: 34px;
     color: var(--caution); text-shadow: 0 3px 0 var(--ink), 0 8px 24px rgba(0,0,0,.4);
     pointer-events: none; opacity: 0; transform: translate(-50%, 0);
     white-space: nowrap;
   }
   .pop.show { animation: pop .8s ease-out; }
   @keyframes pop {
-    0% { opacity: 0; transform: translate(-50%, 16px) scale(.8); }
+    0% { opacity: 0; transform: translate(-50%, 10px) scale(.8); }
     20% { opacity: 1; transform: translate(-50%, 0) scale(1.05); }
-    100% { opacity: 0; transform: translate(-50%, -36px) scale(1); }
+    100% { opacity: 0; transform: translate(-50%, -8px) scale(1); }
   }
 
   .banner {
-    position: fixed; left: 50%; top: calc(92px + env(safe-area-inset-top, 0px));
+    position: fixed; left: 50%; top: calc(122px + env(safe-area-inset-top, 0px));
     background: var(--sign); color: var(--sign-ink);
     border-radius: 10px; padding: 4px;
     box-shadow: 0 10px 30px rgba(0,0,0,.4);
