@@ -232,6 +232,11 @@
   .missions-done { margin: 0; font-size: 13px; color: var(--caution); font-weight: 700; }
   .run-extra { font-size: 13px !important; opacity: .8; }
   .modtag { position: fixed; left: 16px; top: calc(78px + env(safe-area-inset-top, 0px)); background: var(--glass); border-radius: 6px; padding: 6px 9px 4px; font: 800 11px/1 "Overpass", system-ui, sans-serif; letter-spacing: .12em; color: var(--caution); pointer-events: none; }
+  .mode-pick { display: grid; gap: 6px; }
+  .mode-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; background: rgba(0,0,0,.25); padding: 3px; border-radius: 9px; }
+  .mode-tab { font: 900 14px/1 "Overpass", system-ui, sans-serif; letter-spacing: .08em; text-transform: uppercase; color: var(--sign-ink); background: transparent; border: 0; border-radius: 7px; padding: 10px 6px 8px; cursor: pointer; }
+  .mode-tab[aria-pressed="true"] { background: var(--caution); color: var(--ink); }
+  .mode-desc { margin: 0; font-size: 12px !important; opacity: .85; }
   .rule-rule { height: 0; border-top: 2px solid rgba(246,241,228,.35); }
 
   .garage { display: grid; gap: 9px; }
@@ -357,7 +362,7 @@
 
 <div class="hud">
   <div class="limit"><div><span class="hud-label">SPEED</span><span class="hud-num" id="mph">60</span><span class="hud-unit">MPH</span></div></div>
-  <div class="marker"><div><span class="hud-label">TURNS</span><span class="hud-num" id="turns">0</span></div></div>
+  <div class="marker"><div><span class="hud-label" id="turnsLabel">TURNS</span><span class="hud-num" id="turns">0</span></div></div>
   <div class="marker gold"><div><span class="hud-label">COINS</span><span class="hud-num" id="coins">0</span></div></div>
   <div class="marker"><div><span class="hud-label">BEST</span><span class="hud-num" id="best">0</span></div></div>
   <div class="hud-spacer"></div>
@@ -400,6 +405,10 @@
         <li><span class="coin-dot" aria-hidden="true"></span>Grab coins, then spend them on mystery boxes to find new rides.</li>
       </ul>
       <div class="missions-box"><div class="garage-head"><span>MISSIONS</span><span class="collected">earn coins</span></div><ol class="missions"></ol></div>
+      <div class="mode-pick">
+        <div class="mode-tabs" role="group" aria-label="Game mode"><button type="button" class="mode-tab" data-mode="classic" aria-pressed="true">Classic</button><button type="button" class="mode-tab" data-mode="straight" aria-pressed="false">Straight</button></div>
+        <p class="mode-desc" id="modeDesc"></p>
+      </div>
       <label class="name-field" for="playerName"><span>YOUR NAME</span>
         <input id="playerName" type="text" maxlength="16" autocomplete="off" spellcheck="false" placeholder="Shown on the leaderboard">
       </label>
@@ -451,7 +460,7 @@
       <p class="crash-why" id="crashWhy">You missed the turn.</p>
       <p class="run-extra" id="runExtra"></p>
       <div class="stats">
-        <div class="stat"><b id="oTurns">0</b><span>TURNS</span></div>
+        <div class="stat"><b id="oTurns">0</b><span id="oTurnsLabel">TURNS</span></div>
         <div class="stat"><b id="oCoins">0</b><span>COINS</span></div>
         <div class="stat"><b id="oSpeed">0</b><span>TOP MPH</span></div>
         <div class="stat"><b id="oBest">0</b><span>BEST</span></div>
@@ -522,7 +531,7 @@
     start: $('startScreen'), over: $('overScreen'), pause: $('pauseScreen'),
     crashWhy: $('crashWhy'), oTurns: $('oTurns'), oCoins: $('oCoins'), oSpeed: $('oSpeed'), oBest: $('oBest'),
     badges: $('badges'), overTitle: $('overTitle'), muteBtn: $('muteBtn'), pauseBtn: $('pauseBtn'),
-    rides: $('rides'), perk: $('perk'), bank: $('bank'), live: $('live'), liveList: $('liveList'), itemWrap: $('itemWrap'), itemBtn: $('itemBtn'), itemIcon: $('itemIcon'), fxChips: $('fxChips'), modTag: $('modTag'), runExtra: $('runExtra'), collected: $('collected'), boxBtn: $('boxBtn'), boxNote: $('boxNote'), boxScreen: $('boxScreen'), revealCube: $('revealCube'), revealCanvas: $('revealCanvas'), revealInfo: $('revealInfo'), revealBtns: $('revealBtns'), revealRarity: $('revealRarity'), revealName: $('revealName'), revealPerk: $('revealPerk'), revealNote: $('revealNote'), revealDrive: $('revealDrive'), revealAgain: $('revealAgain'), revealBack: $('revealBack'), icons: $('icons'), iconPerk: $('iconPerk'), iconCollected: $('iconCollected'), iconBoxBtn: $('iconBoxBtn'), iconBoxNote: $('iconBoxNote')
+    rides: $('rides'), perk: $('perk'), bank: $('bank'), live: $('live'), liveList: $('liveList'), itemWrap: $('itemWrap'), itemBtn: $('itemBtn'), itemIcon: $('itemIcon'), fxChips: $('fxChips'), modTag: $('modTag'), turnsLabel: $('turnsLabel'), oTurnsLabel: $('oTurnsLabel'), modeDesc: $('modeDesc'), runExtra: $('runExtra'), collected: $('collected'), boxBtn: $('boxBtn'), boxNote: $('boxNote'), boxScreen: $('boxScreen'), revealCube: $('revealCube'), revealCanvas: $('revealCanvas'), revealInfo: $('revealInfo'), revealBtns: $('revealBtns'), revealRarity: $('revealRarity'), revealName: $('revealName'), revealPerk: $('revealPerk'), revealNote: $('revealNote'), revealDrive: $('revealDrive'), revealAgain: $('revealAgain'), revealBack: $('revealBack'), icons: $('icons'), iconPerk: $('iconPerk'), iconCollected: $('iconCollected'), iconBoxBtn: $('iconBoxBtn'), iconBoxNote: $('iconBoxNote')
   };
   const reduceMotion = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
   const store = {
@@ -538,10 +547,15 @@
   // speed added by the nth turn: tapers from about 6.5 mph to a steady 3 mph by turn 12, then stays there
   const TAPER_TURNS = 12, LATE_GAIN = 12;
   const gainFor = n => n < TAPER_TURNS ? SPEED_GAIN - (SPEED_GAIN - LATE_GAIN) * (n / TAPER_TURNS) : LATE_GAIN;
-  const nominalSpeeds = [320];
+  // Game mode: 'classic' (turns) or 'straight' (no corners, no powerups, speeds up twice as fast)
+  let gameMode = store.get('mode', 'classic') === 'straight' ? 'straight' : 'classic';
+  const straight = () => gameMode === 'straight';
+  const gainMul = () => straight() ? 2 : 1;
+  let nominalSpeeds = [320], nominalMode = gameMode;
   const DENSE_FROM = 10;
   function nominalSpeed(n) {
-    while (nominalSpeeds.length <= n) { const k = nominalSpeeds.length; nominalSpeeds.push(Math.min(MAX_SPEED, nominalSpeeds[k - 1] + gainFor(k))); }
+    if (nominalMode !== gameMode) { nominalSpeeds = [320]; nominalMode = gameMode; }
+    while (nominalSpeeds.length <= n) { const k = nominalSpeeds.length; nominalSpeeds.push(Math.min(MAX_SPEED, nominalSpeeds[k - 1] + gainFor(k) * gainMul())); }
     return nominalSpeeds[n];
   }
   const DIRS = [[0, -1], [1, 0], [0, 1], [-1, 0]];
@@ -619,7 +633,7 @@
   ];
   const rarityOf = r => RARITIES.find(x => x.id === r.rarity) || STARTER;
 
-  let best = store.get('best', 0);
+  let best = store.get('best', 0), bestStraight = store.get('bestStraight', 0);
   try { best = Math.max(best, parseInt(localStorage.getItem('turnSignalBest') || '0', 10) || 0); } catch (e) {}
   let bank = store.get('bank', 0);
   // Coin economy v2: coins are rarer now, so everyone starts again from zero once
@@ -665,8 +679,8 @@
     const R = rngFor(n), sp = nominalSpeed(n);
     const b = BIOMES[biomeOf(n)];
     const long = !first && n >= 2 && R() < 0.3;
-    const len = first ? 760 : long ? 1400 + R() * 900 + sp * 2.4 : 420 + R() * 420 + sp * 0.5;
-    const turn = h === 0 ? (R() < 0.5 ? -1 : 1) : (h === 1 ? -1 : 1);
+    const len = straight() ? 950 + R() * 350 + sp * 0.6 : first ? 760 : long ? 1400 + R() * 900 + sp * 2.4 : 420 + R() * 420 + sp * 0.5;
+    const turn = straight() ? 0 : h === 0 ? (R() < 0.5 ? -1 : 1) : (h === 1 ? -1 : 1);
     const obs = [], coinsArr = [], boxes = [];
     let y = first ? 320 : 190 + sp * 0.1 + R() * 60;
     // past the speed cap, rows get closer together instead
@@ -674,7 +688,7 @@
     const gap = Math.max(175, sp * 0.66 * dense);
     const twoChance = Math.min(0.6, 0.13 + n * 0.036);
     const rowsFree = [];
-    while (y < len - 260) {
+    while (y < len - (straight() ? 80 : 260)) {
       const count = R() < twoChance ? 2 : 1;
       const order = [-1, 0, 1].sort(() => R() - 0.5);
       const blocked = order.slice(0, count);
@@ -708,7 +722,7 @@
         }
       }
       if (free.length) rowsFree.push({ y, free });
-      if (n >= 1 && boxes.length < (modIs('lucky') ? 2 : 1) && R() < (modIs('lucky') ? 0.22 : 0.08)) {
+      if (!straight() && n >= 1 && boxes.length < (modIs('lucky') ? 2 : 1) && R() < (modIs('lucky') ? 0.22 : 0.08)) {
         const bl = free[Math.floor(R() * free.length)];
         const bs = y + 115;
         if (free.length && bs < len - 220) boxes.push({ s: bs, lane: bl, got: false });
@@ -724,10 +738,10 @@
     if (nCoins && !rowsFree.length) coinsArr.push({ s: len * 0.5, lane: [-1, 0, 1][Math.floor(R() * 3)], got: false });
     // road collapse: a stretch where one or two random lanes will suddenly be closed and drop away
     let collapse = null;
-    if (n >= 2 && len > 900 && R() < (long ? 0.45 : 0.25) + Math.max(0, Math.min(0.2, (n - 8) * 0.02))) {
+    if (n >= 2 && len > (straight() ? 700 : 900) && R() < (long ? 0.45 : 0.25) + Math.max(0, Math.min(0.2, (n - 8) * 0.02))) {
       const cl = 280 + R() * 260 + sp * 0.7;
       const s0 = 380 + R() * Math.max(0, len - cl - 720);
-      if (s0 + cl < len - 320) {
+      if (s0 + cl < len - (straight() ? 100 : 320)) {
         collapse = { s0, s1: s0 + cl, phase: 'idle', keep: [-1, 0, 1], gone: [], tiles: [] };
         const inside = v => v > s0 - 150 && v < s0 + cl + 120;
         for (const arr of [obs, coinsArr, boxes]) for (let i = arr.length - 1; i >= 0; i--) if (inside(arr[i].s)) arr.splice(i, 1);
@@ -754,6 +768,7 @@
 
   function nextStart(seg) {
     const d = dirOf(seg.h);
+    if (!seg.turn) return { S: { x: seg.S.x + d[0] * seg.len, y: seg.S.y + d[1] * seg.len }, h: seg.h };
     const C = { x: seg.S.x + d[0] * (seg.len + W / 2), y: seg.S.y + d[1] * (seg.len + W / 2) };
     const h2 = (seg.h + seg.turn + 4) % 4;
     const d2 = dirOf(h2);
@@ -788,7 +803,7 @@
     runT = 0; launchT = 0; gag = null; nextGag = 15 + Math.random() * 15;
     item = null; rolling = 0; jumpT = 0; jumpH = 0; fx.shield = fx.turbo = fx.magnet = 0;
     phasesLeft = ride.phases || 0;
-    if (ride.startItem) item = ride.startItem;
+    if (ride.startItem && !straight()) item = ride.startItem;
     renderItem(true);
     updateHud();
   }
@@ -797,7 +812,7 @@
     ui.mph.textContent = toMph(speed);
     ui.turns.textContent = turns;
     ui.coins.textContent = coins;
-    ui.best.textContent = best;
+    ui.best.textContent = straight() ? bestStraight : best;
   }
 
   function popText(txt) {
@@ -1093,7 +1108,7 @@
     }
     ui.boxBtn.disabled = bank < BOX_COST;
     ui.boxBtn.querySelector('small').textContent = bank < BOX_COST ? BOX_COST + ' coins · need ' + (BOX_COST - bank) + ' more' : BOX_COST + ' coins';
-    ui.boxNote.textContent = bank < BOX_COST ? 'You need ' + (BOX_COST - bank) + ' more coins.' : 'Common 50% · Uncommon 27% · Rare 14% · Epic 7% · Legendary 2%';
+    ui.boxNote.textContent = bank < BOX_COST ? 'You need ' + (BOX_COST - bank) + ' more coins.' : 'Common 50% · Uncommon 27% · Rare 14% · Epic 7% · Legendary 2%. Rides you already own are half as likely.';
     ui.perk.textContent = perkText(rideById(rideId));
     refreshIcons();
   }
@@ -1167,7 +1182,7 @@
     ui.iconPerk.textContent = iconText(iconById(iconId));
     ui.iconBoxBtn.disabled = bank < ICON_BOX_COST;
     ui.iconBoxBtn.querySelector('small').textContent = bank < ICON_BOX_COST ? ICON_BOX_COST + ' coins · need ' + (ICON_BOX_COST - bank) + ' more' : ICON_BOX_COST + ' coins';
-    ui.iconBoxNote.textContent = bank < ICON_BOX_COST ? 'You need ' + (ICON_BOX_COST - bank) + ' more coins.' : 'Same odds as the ride box.';
+    ui.iconBoxNote.textContent = bank < ICON_BOX_COST ? 'You need ' + (ICON_BOX_COST - bank) + ' more coins.' : 'Same odds as the ride box. Icons you already own are half as likely.';
   }
 
   // ---- Mystery box ----
@@ -1177,24 +1192,35 @@
     for (const x of RARITIES) { if ((r -= x.odds) <= 0) return x; }
     return RARITIES[0];
   }
+  // Each item's chance is its rarity's odds split across that rarity; anything you already own counts half.
+  const DUP_WEIGHT = 0.5;
+  function pickWeighted(list, have) {
+    const pool = list.filter(x => RARITIES.some(r => r.id === x.rarity));
+    const weights = pool.map(x => {
+      const rar = RARITIES.find(r => r.id === x.rarity);
+      const size = pool.filter(y => y.rarity === x.rarity).length;
+      return rar.odds / size * (have(x.id) ? DUP_WEIGHT : 1);
+    });
+    let r = Math.random() * weights.reduce((a, b) => a + b, 0);
+    for (let i = 0; i < pool.length; i++) { if ((r -= weights[i]) <= 0) return pool[i]; }
+    return pool[pool.length - 1];
+  }
   function openBox(kind = 'ride') {
     const cost = kind === 'icon' ? ICON_BOX_COST : BOX_COST;
     if (bank < cost || (reveal && reveal.phase === 'rolling')) return;
     initAudio();
     bank -= cost;
-    const rar = rollRarity();
     let got, dup;
     if (kind === 'icon') {
-      const pool = ICONS.filter(i => i.rarity === rar.id);
-      got = pool[Math.floor(Math.random() * pool.length)];
+      got = pickWeighted(ICONS, id => ownedIcons.includes(id));
       dup = ownedIcons.includes(got.id);
       if (!dup) { ownedIcons.push(got.id); store.set('icons', ownedIcons); }
     } else {
-      const pool = RIDES.filter(r => r.rarity === rar.id);
-      got = pool[Math.floor(Math.random() * pool.length)];
+      got = pickWeighted(RIDES, owns);
       dup = owns(got.id);
       if (!dup) { owned.push(got.id); store.set('owned', owned); }
     }
+    const rar = rarityOf(got);
     store.set('bank', bank);
     reveal = { phase: 'rolling', t: 0, kind, cost, ride: kind === 'ride' ? got : null, icon: kind === 'icon' ? got : null, item: got, rar, dup };
     ui.boxScreen.hidden = false;
@@ -1313,7 +1339,7 @@
     if (inBox(seg)) {
       if (d === seg.turn) doTurn();
       else crash('Wrong way. That corner bent ' + (seg.turn < 0 ? 'left' : 'right') + '.');
-    } else if (s >= seg.len - APPROACH && d === seg.turn) {
+    } else if (seg.turn && s >= seg.len - APPROACH && d === seg.turn) {
       crash('Too early. Wait until you are inside the box to turn.');
     } else {
       const nl = lane + d;
@@ -1348,7 +1374,14 @@
   // split into equal thirds: early → inside lane, middle → middle lane, late → outside lane.
   const winStart = seg => seg.len - 8;
   const winEnd = seg => seg.len + W - ride.h / 2 - 6;
-  function inBox(seg) { return s >= winStart(seg); }
+  function inBox(seg) { return !!seg.turn && s >= winStart(seg); }
+  function advanceStraight() {
+    const seg = segs[segIdx];
+    s -= seg.len;
+    segIdx++;
+    ensureSegs();
+    progressTo(segs[segIdx]);
+  }
 
   function doTurn() {
     const seg = segs[segIdx];
@@ -1372,11 +1405,16 @@
     const E = [s + reach, L];
     arc = makeArc([s, lat], [s, lat + sig * Math.max(12, dd * 0.55)], [E[0] - Math.max(18, reach * 0.45), L], E);
     targetA += seg.turn * Math.PI / 2;
+    progressTo(ns);
+  }
+
+  // shared by corners (classic) and mile markers (straight): score, speed, zones, banners
+  function progressTo(ns) {
     turns++;
-    bump('turns_run', turns, true);
+    if (!straight()) bump('turns_run', turns, true);
     if (BIOMES[ns.biome].fly) bump('fly', 1, true);
-    if (ride.shieldEvery && turns % ride.shieldEvery === 0) fx.shield = SHIELD_T;
-    speed = Math.min(MAX_SPEED, speed + gainFor(turns));
+    if (ride.shieldEvery && !straight() && turns % ride.shieldEvery === 0) fx.shield = SHIELD_T;
+    speed = Math.min(MAX_SPEED, speed + gainFor(turns) * gainMul());
     topSpeed = Math.max(topSpeed, speed);
     if (segIdx > 3) { segs.splice(0, segIdx - 2); segIdx = 2; }
     updateHud();
@@ -1405,7 +1443,7 @@
         [523, 784].forEach((f, i) => setTimeout(() => blip(f, 0.12, 'triangle', 0.05), i * 110));
       }
     } else {
-      popText(turns % 5 === 0 ? toMph(speed) + ' MPH!' : '+1');
+      popText(turns % 5 === 0 ? toMph(speed) + ' MPH!' : straight() ? 'MILE ' + turns : '+1');
     }
   }
 
@@ -1436,8 +1474,11 @@
   function showOver() {
     state = 'over';
     const badges = [];
-    const isBest = turns > best;
-    if (isBest) { best = turns; store.set('best', best); if (turns > 0) badges.push('NEW BEST'); }
+    const isBest = turns > (straight() ? bestStraight : best);
+    if (isBest) {
+      if (straight()) { bestStraight = turns; store.set('bestStraight', turns); } else { best = turns; store.set('best', best); }
+      if (turns > 0) badges.push('NEW BEST');
+    }
     const before = bank - coins;
     if (bank >= BOX_COST && before < BOX_COST) badges.push('MYSTERY BOX READY');
     ui.badges.innerHTML = '';
@@ -1445,12 +1486,12 @@
     ui.badges.hidden = badges.length === 0;
     ui.overTitle.textContent = 'Crashed in ' + BIOMES[biome].name;
     ui.modTag.hidden = true;
-    ui.runExtra.textContent = [mod ? 'Road: ' + mod.name : '', nearCount + (nearCount === 1 ? ' close call' : ' close calls')].filter(Boolean).join(' · ');
+    ui.runExtra.textContent = [straight() ? 'Straight mode (not on the leaderboard yet)' : '', mod ? 'Road: ' + mod.name : '', nearCount + (nearCount === 1 ? ' close call' : ' close calls')].filter(Boolean).join(' · ');
     renderMissions();
     ui.oTurns.textContent = turns;
     ui.oCoins.textContent = coins;
     ui.oSpeed.textContent = toMph(topSpeed);
-    ui.oBest.textContent = best;
+    ui.oBest.textContent = straight() ? bestStraight : best;
     updateHud();
     refreshGarage();
     postScore();
@@ -1590,7 +1631,8 @@
         latV += ((lane * LANE - lat) * wl * wl - 2 * wl * latV) * dt;
         lat += latV * dt;
       }
-      if (s + ride.h / 2 >= seg.len + W - 4) {
+      if (!seg.turn && s >= seg.len) { advanceStraight(); seg = segs[segIdx]; }
+      if (seg.turn && s + ride.h / 2 >= seg.len + W - 4) {
         crash(BIOMES[biome].fly ? 'Too late. You flew straight off the skyway.' : 'Too late. You hit the barrier.');
       }
       if (state === 'play' && seg.collapse) updateCollapse(seg);
@@ -1798,7 +1840,7 @@
 
   let itemKey = '';
   function renderItem(force) {
-    const showing = state === 'play' || state === 'paused';
+    const showing = (state === 'play' || state === 'paused') && !straight();
     const shown = rolling > 0 ? Object.keys(ITEMS)[Math.floor(time * 14) % 4] : item;
     const chips = Object.keys(fx).filter(k => fx[k] > 0).map(k => k + ':' + Math.ceil(fx[k])).join(',');
     const key = showing + '|' + shown + '|' + chips + '|' + (rolling > 0);
@@ -1905,6 +1947,20 @@
       ctx.lineCap = 'butt';
     }
   }
+
+  // ---- Mode picker ----
+  function setMode(m) {
+    gameMode = m; store.set('mode', m);
+    for (const b of document.querySelectorAll('.mode-tab')) b.setAttribute('aria-pressed', String(b.dataset.mode === m));
+    ui.turnsLabel.textContent = ui.oTurnsLabel.textContent = straight() ? 'MILES' : 'TURNS';
+    ui.modeDesc.textContent = straight()
+      ? 'No corners, no powerups. One endless road that speeds up twice as fast. Your best is saved on this device.'
+      : 'Take every corner in the box. Powerups, missions and the leaderboard.';
+    if (state === 'menu') reset();
+    updateHud();
+  }
+  for (const b of document.querySelectorAll('.mode-tab')) b.addEventListener('click', () => { setMode(b.dataset.mode); blip(700, 0.05, 'triangle', 0.04); });
+  setTimeout(() => setMode(gameMode), 0);
 
   // ---- Leaderboard tabs ----
   let boardMode = store.get('boardMode', 'turns') === 'speed' ? 'speed' : 'turns';
@@ -2235,7 +2291,7 @@
   }
 
   function postScore() {
-    if (turns <= 0) return;
+    if (turns <= 0 || straight()) return;
     const name = myName();
     if (!name) { mp.note = 'Type a name on the start screen to post your scores.'; renderBoards(); return; }
     if (!mp.sb) return;
@@ -2647,19 +2703,20 @@
 
   // ---- Road ----
   function drawRoadsFlat(list) {
-    for (const g of list) fillPoly(segQuad(g, -W / 2 - 14, -14, W / 2 + 14, g.len + W + 14), BIOMES[g.biome].shoulder);
-    for (const g of list) fillPoly(segQuad(g, -W / 2, 0, W / 2, g.len + W), BIOMES[g.biome].asphalt);
+    for (const g of list) fillPoly(segQuad(g, -W / 2 - 14, -14, W / 2 + 14, g.turn ? g.len + W + 14 : g.len + 2), BIOMES[g.biome].shoulder);
+    for (const g of list) fillPoly(segQuad(g, -W / 2, 0, W / 2, g.turn ? g.len + W : g.len + 1), BIOMES[g.biome].asphalt);
     for (const g of list) {
       const B = BIOMES[g.biome];
       fillPoly(segQuad(g, -W / 2 + 5, 0, -W / 2 + 9, g.len), B.line);
       fillPoly(segQuad(g, W / 2 - 9, 0, W / 2 - 5, g.len), B.line);
-      const solidFrom = Math.max(0, g.len - APPROACH);
+      const solidFrom = g.turn ? Math.max(0, g.len - APPROACH) : g.len;
       for (let y = 20; y + 32 < solidFrom; y += 64) {
         fillPoly(segQuad(g, -LANE / 2 - 2, y, -LANE / 2 + 2, y + 32), B.line);
         fillPoly(segQuad(g, LANE / 2 - 2, y, LANE / 2 + 2, y + 32), B.line);
       }
       fillPoly(segQuad(g, -LANE / 2 - 2, solidFrom, -LANE / 2 + 2, g.len), B.line);
       fillPoly(segQuad(g, LANE / 2 - 2, solidFrom, LANE / 2 + 2, g.len), B.line);
+      if (!g.turn) continue;
       // the turn box
       const b0 = g.len + 6, b1 = g.len + W - 6, e0 = -W / 2 + 6, e1 = W / 2 - 6;
       fillPoly(segQuad(g, e0, b0, e1, b0 + 4), B.stop);
@@ -2685,6 +2742,7 @@
     for (const g of list) {
       const B = BIOMES[g.biome];
       // barrier walls on the outside of the corner
+      if (g.turn) {
       const wallS = g.len + W + 7, blk = 16, WH = 26;
       let k = 0;
       for (let x = -W / 2 - 14; x < W / 2 + 14; x += blk, k++) {
@@ -2702,6 +2760,7 @@
         if (p.z < NEAR || p.z > ZFAR) continue;
         const col = B.barrier[k % 2];
         add(p.z, () => fillPoly([[a.x, a.y, 0], [b2.x, b2.y, 0], [b2.x, b2.y, WH], [a.x, a.y, WH]], col));
+      }
       }
       for (const c of g.coins) {
         if (c.got) continue;

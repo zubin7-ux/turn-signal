@@ -127,7 +127,7 @@
   }
 
   function postScore() {
-    if (turns <= 0) return;
+    if (turns <= 0 || straight()) return;
     const name = myName();
     if (!name) { mp.note = 'Type a name on the start screen to post your scores.'; renderBoards(); return; }
     if (!mp.sb) return;
