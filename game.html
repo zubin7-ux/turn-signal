@@ -542,7 +542,7 @@
   // where a (possibly moving) obstacle is across the road right now
   const obsLat = o => o.mv ? (o.mv.a + (o.mv.b - o.mv.a) * (0.5 - 0.5 * Math.cos(o.mv.w * time + o.mv.ph))) * LANE : o.lane * LANE;
   // new hazards get announced the first time they can appear
-  const HAZARD_INTROS = { 1: 'Holes in the road', 2: 'Collapsing road', 3: 'Torpedo strikes', 4: 'Oil slicks', 5: 'Moving obstacles', 6: 'Spike strips', 9: 'Hazards start stacking' };
+  const HAZARD_INTROS = { 1: 'Holes in the road', 2: 'Collapsing road', 3: 'Torpedo strikes', 5: 'Moving obstacles', 6: 'Spike strips', 9: 'Hazards start stacking' };
   // the four ground zones come in a shuffled order each run; then the Skyway, then space
   let zoneOrder = [0, 1, 2, 3];
   const biomeOf = n => n < 12 ? zoneOrder[Math.floor(n / 3)] : n < 18 ? 4 : 5;
@@ -680,16 +680,10 @@
           const q = R();
           if (!b.fly) {
             if (n >= 1 && q < (modIs('potholes') ? 0.26 : 0.13)) kind = 'hole';
-            else if (n >= 4 && q < (modIs('potholes') ? 0.34 : 0.24)) kind = 'oil';
             else if (n >= 6 && q < (modIs('potholes') ? 0.42 : 0.33)) kind = 'spikes';
           }
           obs.push({ s: y + (R() * 16 - 8), lane: ln, kind, r: KINDS[kind].r, rot: R() * 6 });
         }
-      }
-      // combo (turn 8+): an oil slick just before a row, waiting to shove you into it
-      if (!b.fly && n >= 8 && free.length && R() < 0.2 && y > 260) {
-        const ol = free[Math.floor(R() * free.length)];
-        obs.push({ s: y - 85, lane: ol, kind: 'oil', r: KINDS.oil.r, rot: R() * 6 });
       }
       if (free.length) rowsFree.push({ y, free });
       if (n >= 1 && boxes.length < (modIs('lucky') ? 2 : 1) && R() < (modIs('lucky') ? 0.22 : 0.08)) {
