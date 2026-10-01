@@ -43,8 +43,8 @@
     if (!mp.sb) return;
     try {
       const [byTurns, bySpeed] = await Promise.all([
-        mp.sb.from('scores').select('name,turns,ride,icon').order('turns', { ascending: false }).limit(300),
-        mp.sb.from('scores').select('name,top_mph,ride,icon').not('top_mph', 'is', null).order('top_mph', { ascending: false }).limit(300)
+        mp.sb.from('scores').select('name,turns,ride,icon').eq('mode', 'classic').order('turns', { ascending: false }).limit(300),
+        mp.sb.from('scores').select('name,top_mph,ride,icon').eq('mode', 'straight').not('top_mph', 'is', null).order('top_mph', { ascending: false }).limit(300)
       ]);
       if (byTurns.error) throw byTurns.error;
       mp.board = bestPerName(byTurns.data, 'turns');
@@ -77,7 +77,7 @@
       sub.textContent = mp.boardState === 'loading' ? 'Loading scores…'
         : mp.boardState !== 'ok' ? 'The leaderboard is offline right now. You can still play.'
         : !rows.length ? 'No scores yet. Finish a run to post the first one.'
-        : boardMode === 'speed' ? 'Fastest top speed for each name.' : 'Most turns for each name.';
+        : boardMode === 'speed' ? 'Fastest Straight-mode speed for each name.' : 'Most Classic-mode turns for each name.';
       rows.forEach((row, i) => {
         const li = document.createElement('li');
         const mine = me && row.name.toLowerCase() === me;
@@ -127,16 +127,17 @@
   }
 
   function postScore() {
-    if (turns <= 0 || straight()) return;
+    if (turns <= 0) return;
     const name = myName();
     if (!name) { mp.note = 'Type a name on the start screen to post your scores.'; renderBoards(); return; }
     if (!mp.sb) return;
-    const key = 'posted.' + name.toLowerCase(), keyMph = 'postedMph.' + name.toLowerCase();
     const mph = toMph(topSpeed);
-    if (turns <= store.get(key, 0) && mph <= store.get(keyMph, 0)) return;
-    mp.sb.from('scores').insert({ name, turns, ride: ride.id, top_mph: mph, icon: iconId }).then(({ error }) => {
+    // Classic posts when your turns improve, Straight when your top speed improves
+    const key = (straight() ? 'postedS.' : 'posted.') + name.toLowerCase(), val = straight() ? mph : turns;
+    if (val <= store.get(key, 0)) return;
+    mp.sb.from('scores').insert({ name, turns, ride: ride.id, top_mph: mph, icon: iconId, mode: gameMode }).then(({ error }) => {
       if (error) mp.note = 'Your score could not be posted. Check your connection and try another run.';
-      else { mp.note = ''; store.set(key, Math.max(turns, store.get(key, 0))); store.set(keyMph, Math.max(mph, store.get(keyMph, 0))); }
+      else { mp.note = ''; store.set(key, Math.max(val, store.get(key, 0))); }
       loadBoard();
     });
   }
