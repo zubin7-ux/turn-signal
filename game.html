@@ -225,10 +225,15 @@
   .run-extra { font-size: 13px !important; opacity: .8; }
   .modtag { position: fixed; left: 16px; top: calc(78px + env(safe-area-inset-top, 0px)); background: var(--glass); border-radius: 6px; padding: 6px 9px 4px; font: 800 11px/1 "Overpass", system-ui, sans-serif; letter-spacing: .12em; color: var(--caution); pointer-events: none; }
   .mode-pick { display: grid; gap: 6px; }
-  .mode-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; background: rgba(0,0,0,.25); padding: 3px; border-radius: 9px; }
+  .mode-tabs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; background: rgba(0,0,0,.25); padding: 3px; border-radius: 9px; }
   .mode-tab { font: 900 14px/1 "Overpass", system-ui, sans-serif; letter-spacing: .08em; text-transform: uppercase; color: var(--sign-ink); background: transparent; border: 0; border-radius: 7px; padding: 10px 6px 8px; cursor: pointer; }
   .mode-tab[aria-pressed="true"] { background: var(--caution); color: var(--ink); }
   .mode-desc { margin: 0; font-size: 12px !important; opacity: .85; }
+  .marker.gem { background: #7b4fd6; color: #fff; }
+  .gem-dia { width: 20px; height: 20px; margin: 5px; transform: rotate(45deg); background: linear-gradient(135deg, #c49bff, #7b4fd6); border-radius: 3px; box-shadow: inset 0 0 0 2px rgba(255,255,255,.35); flex: none; }
+  .gem-count { color: #c9b0ff; }
+  .revive-timer { height: 8px; border-radius: 4px; background: rgba(0,0,0,.3); overflow: hidden; }
+  .revive-timer i { display: block; height: 100%; background: var(--caution); width: 100%; }
   .rule-rule { height: 0; border-top: 2px solid rgba(246,241,228,.35); }
 
   .garage { display: grid; gap: 9px; }
@@ -302,7 +307,7 @@
   .board-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
   .board h3 { margin: 0; font-size: 26px; font-weight: 900; line-height: 1; letter-spacing: -.01em; }
   .board-live { font: 700 11px/1 "Overpass Mono", monospace; color: #8ff0a6; }
-  .board-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; background: rgba(0,0,0,.2); padding: 3px; border-radius: 8px; }
+  .board-tabs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; background: rgba(0,0,0,.2); padding: 3px; border-radius: 8px; }
   .board-tab { font: 800 12px/1 "Overpass", system-ui, sans-serif; letter-spacing: .06em; text-transform: uppercase; color: var(--sign-ink); background: transparent; border: 0; border-radius: 6px; padding: 8px 6px 6px; cursor: pointer; }
   .board-tab[aria-pressed="true"] { background: var(--sign-ink); color: #1f4e9c; }
   .pts small { font-size: 10px; font-weight: 700; opacity: .75; margin-left: 2px; }
@@ -345,6 +350,7 @@
   <div class="limit"><div><span class="hud-label">SPEED</span><span class="hud-num" id="mph">60</span><span class="hud-unit">MPH</span></div></div>
   <div class="marker"><div><span class="hud-label" id="turnsLabel">TURNS</span><span class="hud-num" id="turns">0</span></div></div>
   <div class="marker gold"><div><span class="hud-label">COINS</span><span class="hud-num" id="coins">0</span></div></div>
+  <div class="marker gem"><div><span class="hud-label">GEMS</span><span class="hud-num" id="gems">0</span></div></div>
   <div class="marker"><div><span class="hud-label">BEST</span><span class="hud-num" id="best">0</span></div></div>
   <div class="hud-spacer"></div>
   <div class="hud-btns">
@@ -387,7 +393,7 @@
       </ul>
       <div class="missions-box"><div class="garage-head"><span>MISSIONS</span><span class="collected">earn coins</span></div><ol class="missions"></ol></div>
       <div class="mode-pick">
-        <div class="mode-tabs" role="group" aria-label="Game mode"><button type="button" class="mode-tab" data-mode="classic" aria-pressed="true">Classic</button><button type="button" class="mode-tab" data-mode="straight" aria-pressed="false">Straight</button></div>
+        <div class="mode-tabs" role="group" aria-label="Game mode"><button type="button" class="mode-tab" data-mode="classic" aria-pressed="true">Classic</button><button type="button" class="mode-tab" data-mode="straight" aria-pressed="false">Straight</button><button type="button" class="mode-tab" data-mode="daily" aria-pressed="false">Daily</button></div>
         <p class="mode-desc" id="modeDesc"></p>
       </div>
       <button class="go" id="startBtn" type="button">Drive <small>Space</small></button>
@@ -401,6 +407,10 @@
         <div class="mbox-row">
           <button class="mbox" id="boxBtn" type="button"><span class="mbox-cube" aria-hidden="true">?</span><span class="mbox-text"><b>Open a mystery box</b><small>50 coins</small></span></button>
           <span class="bank" id="bank">0 coins</span>
+        </div>
+        <div class="mbox-row">
+          <button class="mbox" id="gemBuyBtn" type="button"><span class="gem-dia" aria-hidden="true"></span><span class="mbox-text"><b>Buy a gem</b><small>150 coins</small></span></button>
+          <span class="bank gem-count" id="gemCount">0 gems</span>
         </div>
         <p class="box-note" id="boxNote"></p>
         <div class="rule-rule"></div>
@@ -419,7 +429,7 @@
   <section class="board" aria-label="High scores">
     <div class="board-inner">
       <div class="board-head"><h3>High Scores</h3><span class="board-live" hidden></span></div>
-      <div class="board-tabs"><button type="button" class="board-tab" data-mode="turns" aria-pressed="true">Most turns</button><button type="button" class="board-tab" data-mode="speed" aria-pressed="false">Top speed</button></div>
+      <div class="board-tabs"><button type="button" class="board-tab" data-mode="turns" aria-pressed="true">Most turns</button><button type="button" class="board-tab" data-mode="speed" aria-pressed="false">Top speed</button><button type="button" class="board-tab" data-mode="today" aria-pressed="false">Today</button></div>
       <p class="board-sub">Loading scores…</p>
       <ol class="board-list"></ol>
       <p class="board-note" hidden></p>
@@ -453,7 +463,7 @@
   <section class="board" aria-label="High scores">
     <div class="board-inner">
       <div class="board-head"><h3>High Scores</h3><span class="board-live" hidden></span></div>
-      <div class="board-tabs"><button type="button" class="board-tab" data-mode="turns" aria-pressed="true">Most turns</button><button type="button" class="board-tab" data-mode="speed" aria-pressed="false">Top speed</button></div>
+      <div class="board-tabs"><button type="button" class="board-tab" data-mode="turns" aria-pressed="true">Most turns</button><button type="button" class="board-tab" data-mode="speed" aria-pressed="false">Top speed</button><button type="button" class="board-tab" data-mode="today" aria-pressed="false">Today</button></div>
       <p class="board-sub">Loading scores…</p>
       <ol class="board-list"></ol>
       <p class="board-note" hidden></p>
@@ -487,6 +497,22 @@
 
 <canvas id="confetti" aria-hidden="true"></canvas>
 
+<div class="overlay" id="reviveScreen" hidden>
+  <div class="sign" style="max-width:380px">
+    <div class="tab"><span>SECOND CHANCE</span></div>
+    <div class="sign-inner">
+      <h2>Keep going?</h2>
+      <p id="reviveWhy"></p>
+      <div class="revive-timer"><i id="reviveBar"></i></div>
+      <div class="btn-row">
+        <button class="go" id="reviveGem" type="button"><span id="reviveGemText">Use 1 gem</span> <small>Enter</small></button>
+        <button class="go" id="reviveCoins" type="button">Pay 150 coins</button>
+        <button class="ghost" id="reviveNo" type="button">No thanks</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div class="overlay" id="pauseScreen" hidden>
   <div class="sign" style="max-width:340px">
     <div class="tab"><span>REST AREA</span></div>
@@ -509,7 +535,7 @@
     start: $('startScreen'), over: $('overScreen'), pause: $('pauseScreen'),
     crashWhy: $('crashWhy'), oTurns: $('oTurns'), oCoins: $('oCoins'), oSpeed: $('oSpeed'), oBest: $('oBest'),
     badges: $('badges'), overTitle: $('overTitle'), muteBtn: $('muteBtn'), pauseBtn: $('pauseBtn'),
-    rides: $('rides'), perk: $('perk'), bank: $('bank'), live: $('live'), liveList: $('liveList'), itemWrap: $('itemWrap'), itemBtn: $('itemBtn'), itemIcon: $('itemIcon'), fxChips: $('fxChips'), modTag: $('modTag'), turnsLabel: $('turnsLabel'), oTurnsLabel: $('oTurnsLabel'), modeDesc: $('modeDesc'), runExtra: $('runExtra'), collected: $('collected'), boxBtn: $('boxBtn'), boxNote: $('boxNote'), boxScreen: $('boxScreen'), revealCube: $('revealCube'), revealCanvas: $('revealCanvas'), revealInfo: $('revealInfo'), revealBtns: $('revealBtns'), revealRarity: $('revealRarity'), revealName: $('revealName'), revealPerk: $('revealPerk'), revealNote: $('revealNote'), revealDrive: $('revealDrive'), revealAgain: $('revealAgain'), revealBack: $('revealBack'), icons: $('icons'), iconPerk: $('iconPerk'), iconCollected: $('iconCollected'), iconBoxBtn: $('iconBoxBtn'), iconBoxNote: $('iconBoxNote')
+    rides: $('rides'), perk: $('perk'), bank: $('bank'), live: $('live'), liveList: $('liveList'), itemWrap: $('itemWrap'), itemBtn: $('itemBtn'), itemIcon: $('itemIcon'), fxChips: $('fxChips'), gems: $('gems'), gemBuyBtn: $('gemBuyBtn'), gemCount: $('gemCount'), revive: $('reviveScreen'), reviveWhy: $('reviveWhy'), reviveBar: $('reviveBar'), reviveGem: $('reviveGem'), reviveGemText: $('reviveGemText'), reviveCoins: $('reviveCoins'), reviveNo: $('reviveNo'), modTag: $('modTag'), turnsLabel: $('turnsLabel'), oTurnsLabel: $('oTurnsLabel'), modeDesc: $('modeDesc'), runExtra: $('runExtra'), collected: $('collected'), boxBtn: $('boxBtn'), boxNote: $('boxNote'), boxScreen: $('boxScreen'), revealCube: $('revealCube'), revealCanvas: $('revealCanvas'), revealInfo: $('revealInfo'), revealBtns: $('revealBtns'), revealRarity: $('revealRarity'), revealName: $('revealName'), revealPerk: $('revealPerk'), revealNote: $('revealNote'), revealDrive: $('revealDrive'), revealAgain: $('revealAgain'), revealBack: $('revealBack'), icons: $('icons'), iconPerk: $('iconPerk'), iconCollected: $('iconCollected'), iconBoxBtn: $('iconBoxBtn'), iconBoxNote: $('iconBoxNote')
   };
   const reduceMotion = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
   const store = {
@@ -524,10 +550,15 @@
   // Each turn adds less speed the faster you already are
   // speed added by the nth turn: tapers from about 6.5 mph to a steady 3 mph by turn 12, then stays there
   const TAPER_TURNS = 12, LATE_GAIN = 12;
-  const gainFor = n => n < TAPER_TURNS ? SPEED_GAIN - (SPEED_GAIN - LATE_GAIN) * (n / TAPER_TURNS) : LATE_GAIN;
+  // after the taper: +2.5 mph a turn, then +1.5 mph from turn 20 so the late game stays dodgeable
+  const gainFor = n => n < TAPER_TURNS ? SPEED_GAIN - (SPEED_GAIN - LATE_GAIN) * (n / TAPER_TURNS) : n < 20 ? 10 : 6;
   // Game mode: 'classic' (turns) or 'straight' (no corners, no powerups, speeds up twice as fast)
-  let gameMode = store.get('mode', 'classic') === 'straight' ? 'straight' : 'classic';
+  let gameMode = ['straight', 'daily'].includes(store.get('mode', 'classic')) ? store.get('mode', 'classic') : 'classic';
   const straight = () => gameMode === 'straight';
+  const daily = () => gameMode === 'daily';
+  // today's date as YYYYMMDD (local time), the key for the daily road and the Today board
+  const todayKey = () => { const d = new Date(); return String(d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate()); };
+  const daySeed = () => (Math.imul(Number(todayKey()), 2654435761) ^ 0x5bd1e995) | 0;
   const gainMul = () => straight() ? 2 : 1;
   let nominalSpeeds = [320], nominalMode = gameMode;
   const DENSE_FROM = 10;
@@ -567,12 +598,12 @@
   // The world loop: 4 ground worlds (4 turns each), the Skyway (6), Outer Orbit (6), then touch down
   // into a fresh shuffle of ground worlds and go round again for as long as you survive.
   const GROUND_LEN = 4, SKY_LEN = 6, SPACE_LEN = 6, LOOP_LEN = GROUND_LEN * 4 + SKY_LEN + SPACE_LEN;
-  let zoneOrders = [];
+  let zoneOrders = [], zoneRng = Math.random;
   function zoneOrderFor(c) {
     while (zoneOrders.length <= c) {
       const prev = zoneOrders[zoneOrders.length - 1];
       let order;
-      do { order = GROUND_ZONES.slice().sort(() => Math.random() - 0.5).slice(0, 4); } while (prev && order[0] === prev[3]);
+      do { order = GROUND_ZONES.slice().sort(() => zoneRng() - 0.5).slice(0, 4); } while (prev && order[0] === prev[3]);
       zoneOrders.push(order);
     }
     return zoneOrders[c];
@@ -584,6 +615,7 @@
   };
 
   const KINDS = {
+    ramp: { r: 24, name: 'a ramp' },
     cone: { r: 12, name: 'a cone' }, barrel: { r: 16, name: 'a barrel' }, crate: { r: 18, name: 'a crate' },
     rock: { r: 18, name: 'a rock' }, tumbleweed: { r: 14, name: 'a tumbleweed' },
     snowman: { r: 16, name: 'a snowman' }, ice: { r: 17, name: 'a block of ice' },
@@ -637,8 +669,19 @@
   const rarityOf = r => RARITIES.find(x => x.id === r.rarity) || STARTER;
 
   let best = store.get('best', 0), bestStraight = store.get('bestStraight', 0);
+  function getBest() {
+    if (straight()) return bestStraight;
+    if (daily()) { const d = store.get('bestDaily', null); return d && d.day === todayKey() ? d.best : 0; }
+    return best;
+  }
+  function setBest(v) {
+    if (straight()) { bestStraight = v; store.set('bestStraight', v); }
+    else if (daily()) store.set('bestDaily', { day: todayKey(), best: v });
+    else { best = v; store.set('best', v); }
+  }
   try { best = Math.max(best, parseInt(localStorage.getItem('turnSignalBest') || '0', 10) || 0); } catch (e) {}
   let bank = store.get('bank', 0);
+  let gems = Math.max(0, Math.floor(Number(store.get('gems', 0)) || 0));
   // Coin economy v2: coins are rarer now, so everyone starts again from zero once
   if (store.get('econ', 1) < 2) { bank = 0; store.set('bank', 0); store.set('econ', 2); }
   let muted = store.get('muted', false);
@@ -663,15 +706,17 @@
   let yawRate = 0, lastCarA = 0;
   let torp = null, crashLatV = 0, runT = 0, launchT = 99, fovK = 0;
   let gag = null, nextGag = 20;
-  let item = null, rolling = 0, jumpT = 0, jumpH = 0, phasesLeft = 0;
+  let item = null, rolling = 0, jumpT = 0, jumpH = 0, phasesLeft = 0, jumpDur = 0.9, jumpPeak = 44;
   const fx = { shield: 0, turbo: 0, magnet: 0 };
 
   // Same seed for everyone on the same (UTC) day, so all players share one road
   // A fresh seed every run, so every road is new
   let TRACK = 0;
   const newTrack = () => {
-    TRACK = (Math.random() * 0x7fffffff) | 0;
+    // the daily challenge uses the same seed for everyone all day
+    TRACK = daily() ? daySeed() : (Math.random() * 0x7fffffff) | 0;
     zoneOrders = [];
+    zoneRng = daily() ? rngFor(-4242) : Math.random;
   };
   function rngFor(n) {
     let a = (Math.imul(TRACK, 2654435761) + Math.imul(n + 1, 97531)) | 0;
@@ -683,23 +728,26 @@
     const R = rngFor(n), sp = nominalSpeed(n);
     const b = BIOMES[biomeOf(n)];
     const long = !first && n >= 2 && R() < 0.3;
-    const len = straight() ? 950 + R() * 350 + sp * 0.6 : first ? 760 : long ? 1400 + R() * 900 + sp * 2.4 : 420 + R() * 420 + sp * 0.5;
+    let len = straight() ? 950 + R() * 350 + sp * 0.6 : first ? 760 : long ? 1400 + R() * 900 + sp * 2.4 : 420 + R() * 420 + sp * 0.5;
+    // boss moments: a train crossing in the ground worlds and a bombing run in the sky, once each per lap
+    const bossKind = n > 0 && n % LOOP_LEN === 10 ? 'train' : n % LOOP_LEN === 19 ? 'bomb' : null;
+    if (bossKind) len = Math.max(len, bossKind === 'train' ? 1500 + sp * 1.2 : 1600 + sp * 4.6);
     const turn = straight() ? 0 : h === 0 ? (R() < 0.5 ? -1 : 1) : (h === 1 ? -1 : 1);
     const obs = [], coinsArr = [], boxes = [];
     let y = first ? 320 : 190 + sp * 0.1 + R() * 60;
     // past the speed cap, rows get closer together instead
     const dense = n > DENSE_FROM ? Math.max(0.86, 1 - (n - DENSE_FROM) * 0.012) : 1;
     const gap = Math.max(175, sp * 0.66 * dense);
-    const twoChance = Math.min(0.6, 0.13 + n * 0.036);
+    const twoChance = Math.min(0.42, 0.13 + n * 0.025);
     const rowsFree = [];
     while (y < len - (straight() ? 80 : 260)) {
       const count = R() < twoChance ? 2 : 1;
       const order = [-1, 0, 1].sort(() => R() - 0.5);
       const blocked = order.slice(0, count);
       let free = order.slice(count);
-      const moving = count === 1 && n >= (modIs('rush') ? 2 : 5) && R() < Math.min(modIs('rush') ? 0.6 : 0.35, (modIs('rush') ? 0.35 : 0.16) + (n - 5) * 0.02);
+      const moving = count === 1 && n >= (modIs('rush') ? 2 : 5) && R() < Math.min(modIs('rush') ? 0.5 : 0.28, (modIs('rush') ? 0.35 : 0.16) + (n - 5) * 0.02);
       // combo (turn 10+): an edge lane is blocked and something slides across the other two, so you time the gap
-      const timed = !moving && count === 2 && n >= 10 && R() < 0.22 && (blocked.includes(-1) !== blocked.includes(1));
+      const timed = !moving && count === 2 && n >= 14 && R() < 0.07 && (blocked.includes(-1) !== blocked.includes(1));
       if (timed) {
         const edge = blocked.includes(-1) ? -1 : 1, ma = Math.min(0, -edge), mb = Math.max(0, -edge);
         let kind = b.obs[Math.floor(R() * b.obs.length)];
@@ -731,6 +779,16 @@
           obs.push({ s: y + (R() * 16 - 8), lane: ln, kind, r: KINDS[kind].r, rot: R() * 6 });
         }
       }
+      // ramp (turn 3+): launches you over what's behind it in that lane, past floating coins
+      if (!b.fly && n >= 3 && free.length && R() < 0.09 && y + 260 < len - 120) {
+        const L = free[Math.floor(R() * free.length)];
+        obs.push({ s: y + 70, lane: L, kind: 'ramp', r: 24, rot: 0 });
+        const pool = b.obs.filter(k => k !== 'hole' && k !== 'oil' && k !== 'lavapool');
+        const kk = pool[Math.floor(R() * pool.length)];
+        obs.push({ s: y + 210, lane: L, kind: kk, r: KINDS[kk].r, rot: R() * 6 });
+        for (const ds of [150, 200, 250]) coinsArr.push({ s: y + ds, lane: L, got: false, air: true });
+        free = free.filter(l => l !== L);
+      }
       if (free.length) rowsFree.push({ y, free });
       if (!straight() && n >= 1 && boxes.length < (modIs('lucky') ? 2 : 1) && R() < (modIs('lucky') ? 0.22 : 0.08)) {
         const bl = free[Math.floor(R() * free.length)];
@@ -748,7 +806,7 @@
     if (nCoins && !rowsFree.length) coinsArr.push({ s: len * 0.5, lane: [-1, 0, 1][Math.floor(R() * 3)], got: false });
     // road collapse: a stretch where one or two random lanes will suddenly be closed and drop away
     let collapse = null;
-    if (n >= 2 && len > (straight() ? 700 : 900) && R() < (long ? 0.45 : 0.25) + Math.max(0, Math.min(0.2, (n - 8) * 0.02))) {
+    if (!bossKind && n >= 2 && len > (straight() ? 700 : 900) && R() < (long ? 0.45 : 0.25) + Math.max(0, Math.min(0.2, (n - 8) * 0.02))) {
       const cl = 280 + R() * 260 + sp * 0.7;
       const s0 = 380 + R() * Math.max(0, len - cl - 720);
       if (s0 + cl < len - (straight() ? 100 : 320)) {
@@ -759,7 +817,7 @@
     }
     // torpedo strikes: where on this road the targeting starts
     const torps = [];
-    if (n >= 3 && (!collapse || n >= 9)) {
+    if (!bossKind && n >= 3 && (!collapse || n >= 9)) {
       const room = len - 150 - sp * 3.2 - 250;
       // from turn 12 torpedoes can show up on normal straights too
       const count = long ? (room > sp * 3 ? 2 : 1) : (n >= 12 && R() < 0.4 ? 1 : 0);
@@ -773,7 +831,19 @@
     }
     // the odd roadside billboard
     const board = n >= 1 && len > 600 && R() < 0.45 ? { s: 140 + R() * (len - 600), side: R() < 0.5 ? -1 : 1 } : null;
-    return { S, h, len, turn, obs, coins: coinsArr, boxes, torps, board, collapse, n, biome: biomeOf(n) };
+    let train = null, bomb = null;
+    if (bossKind === 'train') {
+      train = { s: len * 0.55, dir: R() < 0.5 ? -1 : 1, v: 160, cars: 6, carLen: 110, gap: 150, t0: null, done: false };
+      for (const arr of [obs, coinsArr, boxes]) for (let i = arr.length - 1; i >= 0; i--) if (Math.abs(arr[i].s - train.s) < 260) arr.splice(i, 1);
+    } else if (bossKind === 'bomb') bomb = { at: 260, left: 3, active: false, done: false };
+    // a rare gem, tucked past a row in an open lane
+    let gem = null;
+    if (n >= 3 && rowsFree.length && R() < 0.06) {
+      const row = rowsFree[Math.floor(R() * rowsFree.length)];
+      gem = { s: row.y + 110, lane: row.free[Math.floor(R() * row.free.length)], got: false };
+      if (gem.s > len - 150) gem = null;
+    }
+    return { S, h, len, turn, gem, obs, coins: coinsArr, boxes, torps, board, collapse, train, bomb, n, biome: biomeOf(n) };
   }
 
   function nextStart(seg) {
@@ -799,7 +869,7 @@
 
   function reset() {
     newTrack();
-    ride = rideById(rideId);
+    ride = daily() ? rideById('roadster') : rideById(rideId);
     speed = ride.start + (modIs('tailwind') ? 60 : 0); turns = 0; coins = 0; topSpeed = speed;
     segs = []; segIdx = 0; segCount = 0;
     segs.push(genSeg({ x: 0, y: 0 }, 0, segCount++));
@@ -810,7 +880,7 @@
     biome = prevBiome = biomeOf(0); biomeT = 1; alt = 0;
     nearCount = 0; nearStreak = 0; lastNear = -9;
     particles = []; skids = []; scorches = []; torp = null; crashLatV = 0;
-    runT = 0; launchT = 0; yawRate = 0; lastCarA = 0; gag = null; nextGag = 15 + Math.random() * 15;
+    runT = 0; launchT = 0; revivesUsed = 0; reviveT = 0; yawRate = 0; lastCarA = 0; gag = null; nextGag = 15 + Math.random() * 15;
     item = null; rolling = 0; jumpT = 0; jumpH = 0; fx.shield = fx.turbo = fx.magnet = 0;
     phasesLeft = ride.phases || 0;
     if (ride.startItem && !straight()) item = ride.startItem;
@@ -822,7 +892,8 @@
     ui.mph.textContent = toMph(speed);
     ui.turns.textContent = turns;
     ui.coins.textContent = coins;
-    ui.best.textContent = straight() ? bestStraight : best;
+    ui.gems.textContent = gems;
+    ui.best.textContent = getBest();
   }
 
   function popText(txt) {
@@ -834,13 +905,15 @@
   // Announcements go on a roadside sign a little way ahead instead of over the car
   function showBanner(small, big) {
     if (!segs || !segs.length) return;
-    const style = small === 'NEW HAZARD' ? 'hazard' : small === 'LIFT OFF' || small === 'TOUCHDOWN' ? 'sky' : (mod && big === mod.name) ? 'road' : 'zone';
+    const style = small === 'BOSS' ? 'boss' : small === 'NEW HAZARD' ? 'hazard' : small === 'LIFT OFF' || small === 'TOUCHDOWN' ? 'sky' : (mod && big === mod.name) ? 'road' : 'zone';
     let g = segs[segIdx], at = s + Math.max(320, effSpeed() * 1.5);
     const limit = g.turn ? g.len - 60 : g.len - 20;
     if (at > limit && segs[segIdx + 1]) { g = segs[segIdx + 1]; at = 160; }
     g.signs = g.signs || [];
     for (const sg of g.signs) if (Math.abs(sg.s - at) < 200) at = sg.s + 230;
-    const side = g.board && g.board.side === 1 && Math.abs(g.board.s - at) < 240 ? -1 : 1;
+    // alternate sides so back-to-back signs don't hide each other, and dodge the billboard
+    let side = g.signs.length % 2 ? -1 : 1;
+    if (g.board && g.board.side === side && Math.abs(g.board.s - at) < 240) side = -side;
     g.signs.push({ s: at, side, small, big, style });
   }
 
@@ -1009,6 +1082,7 @@
   ];
   let mod = null;
   const modIs = id => !!mod && mod.id === id;
+  const dailyMod = () => { const v = (Math.imul(Number(todayKey()), 40503) >>> 0) % 10; return v < 7 ? MODS[v % MODS.length] : null; };
   const rollMod = () => Math.random() < 0.65 ? MODS[Math.floor(Math.random() * MODS.length)] : null;
   const isNight = b => BIOMES[b].night || modIs('night');
   const fogFar = () => modIs('fog') ? 1150 : ZFAR;
@@ -1089,6 +1163,76 @@
     bump('near');
   }
 
+  // ---- Music: a little live-generated soundtrack, one style per world, tempo follows your speed ----
+  const MUSIC = [
+    { root: 60, scale: [0, 2, 4, 5, 7, 9, 11], prog: [0, 5, 3, 4], lead: 'square' },                 // Green Valley: bright major
+    { root: 57, scale: [0, 2, 3, 5, 7, 9, 10], prog: [0, 6, 3, 0], lead: 'sawtooth' },               // Dust Bowl: dorian twang
+    { root: 62, scale: [0, 2, 3, 5, 7, 8, 10], prog: [0, 5, 6, 4], lead: 'triangle' },               // Frost Pass: cool minor
+    { root: 55, scale: [0, 2, 3, 5, 7, 8, 10], prog: [0, 3, 5, 4], lead: 'sawtooth', synth: true },  // Night City: synth minor
+    { root: 65, scale: [0, 2, 4, 7, 9], prog: [0, 3, 4, 0], lead: 'triangle', airy: true },          // Skyway: floaty
+    { root: 50, scale: [0, 2, 3, 7, 8], prog: [0, 4, 3, 1], lead: 'sine', airy: true },              // Outer Orbit: spacey
+    { root: 64, scale: [0, 2, 4, 5, 7, 9, 11], prog: [0, 3, 4, 4], lead: 'triangle' },              // Sunny Coast: sunny major
+    { root: 59, scale: [0, 2, 3, 5, 7, 9, 10], prog: [0, 4, 6, 4], lead: 'square', perc: true },    // Jungle Run: busy drums
+    { root: 52, scale: [0, 1, 3, 5, 7, 8, 10], prog: [0, 1, 5, 0], lead: 'sawtooth', heavy: true }  // Lava Fields: heavy phrygian
+  ];
+  let musicGain = null, musicNoise = null, nextStep = 0, stepIdx = 0;
+  const mtof = m => 440 * Math.pow(2, (m - 69) / 12);
+  function ensureMusic() {
+    if (!actx || musicGain) return;
+    musicGain = actx.createGain(); musicGain.gain.value = 0; musicGain.connect(actx.destination);
+    const len = Math.floor(actx.sampleRate * 0.25);
+    musicNoise = actx.createBuffer(1, len, actx.sampleRate);
+    const d = musicNoise.getChannelData(0);
+    for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+  }
+  function mNote(tm, freq, dur, type, vol) {
+    const o = actx.createOscillator(), g = actx.createGain();
+    o.type = type; o.frequency.setValueAtTime(freq, tm);
+    g.gain.setValueAtTime(0.0001, tm); g.gain.exponentialRampToValueAtTime(vol, tm + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, tm + dur);
+    o.connect(g).connect(musicGain); o.start(tm); o.stop(tm + dur + 0.05);
+  }
+  function mKick(tm, vol) {
+    const o = actx.createOscillator(), g = actx.createGain();
+    o.type = 'sine'; o.frequency.setValueAtTime(130, tm); o.frequency.exponentialRampToValueAtTime(40, tm + 0.12);
+    g.gain.setValueAtTime(vol, tm); g.gain.exponentialRampToValueAtTime(0.0001, tm + 0.18);
+    o.connect(g).connect(musicGain); o.start(tm); o.stop(tm + 0.2);
+  }
+  function mNoise(tm, vol, dur, type, freq) {
+    const src = actx.createBufferSource(), f = actx.createBiquadFilter(), g = actx.createGain();
+    src.buffer = musicNoise; f.type = type; f.frequency.value = freq;
+    g.gain.setValueAtTime(vol, tm); g.gain.exponentialRampToValueAtTime(0.0001, tm + dur);
+    src.connect(f).connect(g).connect(musicGain); src.start(tm); src.stop(tm + dur + 0.02);
+  }
+  function musicStep(i, tm, sd) {
+    const M = MUSIC[biome] || MUSIC[0], st = i % 16, bar = Math.floor(i / 16);
+    const deg = M.prog[bar % M.prog.length], sc = M.scale;
+    const tone = k => M.root + sc[(deg + k) % sc.length] + 12 * Math.floor((deg + k) / sc.length);
+    if (M.airy) { if (st === 0 || st === 10) mKick(tm, 0.35); if (st % 4 === 2) mNoise(tm, 0.025, 0.05, 'highpass', 7000); }
+    else {
+      if (st % 4 === 0 || (M.heavy && st === 10)) mKick(tm, 0.5);
+      if (st === 4 || st === 12) mNoise(tm, 0.18, 0.12, 'bandpass', 1800);
+      if (st % 2 === 1 || (M.perc && st % 4 === 2)) mNoise(tm, M.perc ? 0.06 : 0.035, 0.04, 'highpass', 7000);
+    }
+    if ([0, 6, 8, 14].includes(st) || (M.heavy && st % 2 === 0)) mNote(tm, mtof(tone(0) - 24), sd * 1.8, M.heavy ? 'sawtooth' : 'triangle', 0.14);
+    if (st === 0) for (const k of [0, 2, 4]) mNote(tm, mtof(tone(k) - 12), sd * 15, 'sine', M.airy ? 0.05 : 0.03);
+    const pat = (bar * 7 + st * 13) % 11;
+    if ((st % 2 === 0 && pat < 6) || (M.synth && st % 2 === 1 && pat < 3)) {
+      const k = [0, 2, 4, 7][((st >> 1) + bar) % 4];
+      mNote(tm, mtof(tone(k) + (pat > 3 ? 12 : 0)), sd * 0.9, M.lead, M.lead === 'sine' ? 0.06 : 0.035);
+    }
+  }
+  function musicTick() {
+    if (!actx) return;
+    ensureMusic();
+    const want = state === 'play' && !muted && launchT > 1.5;
+    musicGain.gain.setTargetAtTime(want ? 0.55 : 0, actx.currentTime, want ? 0.4 : 0.15);
+    if (!want) { nextStep = 0; return; }
+    const bpm = 104 + Math.min(56, Math.max(0, (effSpeed() - 320) / 9));
+    const sd = 60 / bpm / 4;
+    if (nextStep < actx.currentTime) nextStep = actx.currentTime + 0.05;
+    while (nextStep < actx.currentTime + 0.15) { musicStep(stepIdx, nextStep, sd); stepIdx++; nextStep += sd; }
+  }
+
   // ---- Garage ----
   const previews = [];
   function buildGarage() {
@@ -1125,6 +1269,9 @@
       p.b.setAttribute('aria-label', have ? p.r.name : 'Unknown ' + rarityOf(p.r).name + ' ride');
       p.b.querySelector('.ride-name').textContent = have ? p.r.name : '???';
     }
+    ui.gemCount.textContent = gems + (gems === 1 ? ' gem' : ' gems');
+    ui.gemBuyBtn.disabled = bank < GEM_PRICE;
+    ui.gemBuyBtn.querySelector('small').textContent = bank < GEM_PRICE ? GEM_PRICE + ' coins · need ' + (GEM_PRICE - bank) + ' more' : GEM_PRICE + ' coins';
     ui.boxBtn.disabled = bank < BOX_COST;
     ui.boxBtn.querySelector('small').textContent = bank < BOX_COST ? BOX_COST + ' coins · need ' + (BOX_COST - bank) + ' more' : BOX_COST + ' coins';
     ui.boxNote.textContent = bank < BOX_COST ? 'You need ' + (BOX_COST - bank) + ' more coins.' : 'Common 50% · Uncommon 27% · Rare 14% · Epic 7% · Legendary 2%. Rides you already own are half as likely.';
@@ -1324,13 +1471,13 @@
   // ---- Actions ----
   function startGame() {
     initAudio();
-    mod = rollMod();
+    mod = daily() ? dailyMod() : rollMod();
     reset();
     missionsRunStart();
     state = 'play';
     ui.start.hidden = true; ui.over.hidden = true; ui.pause.hidden = true;
-    ui.modTag.hidden = !mod;
-    if (mod) ui.modTag.textContent = 'ROAD: ' + mod.name.toUpperCase();
+    ui.modTag.hidden = !mod && !daily();
+    ui.modTag.textContent = [daily() ? 'DAILY CHALLENGE' : '', mod ? 'ROAD: ' + mod.name.toUpperCase() : ''].filter(Boolean).join(' · ');
     showBanner('NOW ENTERING', BIOMES[biome].name);
     const runMod = mod;
     if (runMod) setTimeout(() => { if (state === 'play' && mod === runMod) showBanner(runMod.desc, runMod.name); }, 2900);
@@ -1478,9 +1625,62 @@
     }
   }
 
+  // ---- Revives: 150 coins or a gem; each extra revive in the same run doubles the price ----
+  const GEM_PRICE = 150, REVIVE_COINS = 150, REVIVE_WAIT = 6;
+  let revivesUsed = 0, reviveUntil = 0, reviveT = 0, lastCrashMsg = '';
+  const reviveGemCost = () => 2 ** revivesUsed;
+  const reviveCoinCost = () => REVIVE_COINS * 2 ** revivesUsed;
+  function offerRevive() {
+    const canGem = gems >= reviveGemCost(), canCoins = bank >= reviveCoinCost();
+    if (!canGem && !canCoins) { showOver(); return; }
+    state = 'revive';
+    reviveUntil = time + REVIVE_WAIT;
+    ui.reviveWhy.textContent = lastCrashMsg;
+    ui.reviveGem.hidden = !canGem;
+    ui.reviveGemText.textContent = 'Use ' + reviveGemCost() + (reviveGemCost() === 1 ? ' gem' : ' gems');
+    ui.reviveCoins.hidden = !canCoins;
+    ui.reviveCoins.textContent = 'Pay ' + reviveCoinCost() + ' coins';
+    ui.revive.hidden = false;
+    (canGem ? ui.reviveGem : ui.reviveCoins).focus();
+  }
+  function declineRevive() { if (state !== 'revive') return; ui.revive.hidden = true; showOver(); }
+  function doRevive(how) {
+    if (state !== 'revive') return;
+    if (how === 'gem' && gems >= reviveGemCost()) { gems -= reviveGemCost(); store.set('gems', gems); }
+    else if (how === 'coins' && bank >= reviveCoinCost()) { bank -= reviveCoinCost(); store.set('bank', bank); }
+    else return;
+    revivesUsed++;
+    ui.revive.hidden = true;
+    const seg = segs[segIdx];
+    crashV = 0; spin = 0; crashLatV = 0; latV = 0; carV = 0; carA = targetA; torp = null; fx.shield = 0;
+    lat = lane * LANE;
+    // a missed corner gets finished for you; an early press puts you back before the box
+    if (seg.turn && /^(Wrong way|Too early|Too late)/.test(lastCrashMsg)) {
+      if (s >= winStart(seg)) { state = 'play'; doTurn(); }
+      else s = Math.max(0, seg.len - APPROACH - 90);
+    }
+    const C = seg.collapse;
+    if (C && C.phase === 'gone' && s > C.s0 - 20 && s < C.s1 && C.gone.includes(lane)) { lane = C.keep[0]; lat = lane * LANE; }
+    state = 'play';
+    launchT = 0;            // 3, 2, 1, GO again
+    reviveT = 1.55 + 2.5;   // then a couple of seconds you can't be hit
+    popText('REVIVED!');
+    renderItem(true); updateHud();
+  }
+  ui.reviveGem.addEventListener('click', () => doRevive('gem'));
+  ui.reviveCoins.addEventListener('click', () => doRevive('coins'));
+  ui.reviveNo.addEventListener('click', declineRevive);
+  ui.gemBuyBtn.addEventListener('click', () => {
+    if (bank < GEM_PRICE) return;
+    bank -= GEM_PRICE; gems++; store.set('bank', bank); store.set('gems', gems);
+    [988, 1319].forEach((f, k) => setTimeout(() => blip(f, 0.1, 'triangle', 0.05), k * 70));
+    refreshGarage(); updateHud();
+  });
+
   function crash(msg, drift = 0) {
     if (state !== 'play') return;
     state = 'crash';
+    lastCrashMsg = msg;
     crashT = 0; crashV = speed * 0.4; crashLatV = drift; torp = null; spin = (Math.random() < 0.5 ? -1 : 1) * (6 + Math.random() * 4);
     shake = reduceMotion ? 0 : 8;
     ui.cue.hidden = true;
@@ -1497,9 +1697,9 @@
   function showOver() {
     state = 'over';
     const badges = [];
-    const isBest = turns > (straight() ? bestStraight : best);
+    const isBest = turns > getBest();
     if (isBest) {
-      if (straight()) { bestStraight = turns; store.set('bestStraight', turns); } else { best = turns; store.set('best', best); }
+      setBest(turns);
       if (turns > 0) badges.push('NEW BEST');
     }
     const before = bank - coins;
@@ -1509,12 +1709,12 @@
     ui.badges.hidden = badges.length === 0;
     ui.overTitle.textContent = 'Crashed in ' + BIOMES[biome].name;
     ui.modTag.hidden = true;
-    ui.runExtra.textContent = [straight() ? 'Straight mode: your top speed goes on the Top speed board' : '', mod ? 'Road: ' + mod.name : '', nearCount + (nearCount === 1 ? ' close call' : ' close calls')].filter(Boolean).join(' · ');
+    ui.runExtra.textContent = [straight() ? 'Straight mode: your top speed goes on the Top speed board' : daily() ? 'Daily challenge: your turns go on the Today board' : '', mod ? 'Road: ' + mod.name : '', nearCount + (nearCount === 1 ? ' close call' : ' close calls')].filter(Boolean).join(' · ');
     renderMissions();
     ui.oTurns.textContent = turns;
     ui.oCoins.textContent = coins;
     ui.oSpeed.textContent = toMph(topSpeed);
-    ui.oBest.textContent = straight() ? bestStraight : best;
+    ui.oBest.textContent = getBest();
     updateHud();
     refreshGarage();
     postScore();
@@ -1572,6 +1772,11 @@
 
   // ---- Input ----
   window.addEventListener('keydown', e => {
+    if (state === 'revive') {
+      if (e.key === 'Escape') declineRevive();
+      else if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); doRevive(gems >= reviveGemCost() ? 'gem' : 'coins'); }
+      return;
+    }
     if (reveal) { if (e.key === 'Escape' && reveal.phase === 'shown') closeBox(); return; }
     const k = e.key;
     if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', ' '].includes(k)) e.preventDefault();
@@ -1655,6 +1860,7 @@
         crash(BIOMES[biome].fly ? 'Too late. You flew straight off the skyway.' : 'Too late. You hit the barrier.');
       }
       if (state === 'play' && seg.collapse) updateCollapse(seg);
+      if (state === 'play' && (seg.train || seg.bomb)) updateBoss(seg);
       seg = segs[segIdx];
       if (state === 'play') {
         const hw = ride.w / 2 - 3, hl = ride.h / 2 - 4;
@@ -1667,6 +1873,8 @@
         for (const o of seg.obs) {
           if (o.gone) continue;
           if (Math.abs(oS(o) - s) < hl + o.r && Math.abs(obsLat(o) - lat) < hw + o.r) {
+            if (o.kind === 'ramp') { if (jumpT <= 0) launchRamp(); continue; }
+            if (reviveT > 0) continue;
             if (jumpH > 10 || (ride.hover && (o.kind === 'hole' || o.kind === 'oil' || o.kind === 'spikes'))) continue;
             if (o.kind === 'oil') {
               if (!o.hit) {
@@ -1715,7 +1923,7 @@
         }
         if (ride.autoHop && jumpT <= 0) {
           for (const o of seg.obs) {
-            if (!o.gone && o.kind === 'hole' && o.s - s > 0 && o.s - s < 60 + effSpeed() * 0.12 && Math.abs(o.lane * LANE - lat) < 40) { jumpT = 0.0001; blip(500, 0.08, 'square', 0.04); break; }
+            if (!o.gone && o.kind === 'hole' && o.s - s > 0 && o.s - s < 60 + effSpeed() * 0.12 && Math.abs(o.lane * LANE - lat) < 40) { jumpT = 0.0001; jumpDur = JUMP_T; jumpPeak = 44; blip(500, 0.08, 'square', 0.04); break; }
           }
         }
         if (!torp && !arc && !ride.torpImmune) {
@@ -1743,9 +1951,18 @@
           if (!item && rolling <= 0) { rolling = 0.9; item = pickItem(); }
           blip(660, 0.06, 'square', 0.04); setTimeout(() => blip(990, 0.08, 'square', 0.04), 60);
         }
+        const gm = seg.gem;
+        if (gm && !gm.got && Math.abs(gm.s - s) < ride.h / 2 + 14 && Math.abs(gm.lane * LANE - lat) < ride.w / 2 + 16) {
+          gm.got = true; gems++; store.set('gems', gems); ui.gems.textContent = gems;
+          popText('GEM!');
+          [988, 1319, 1760].forEach((f, k) => setTimeout(() => blip(f, 0.1, 'triangle', 0.05), k * 60));
+          const P = posOf(seg, gm.s, gm.lane * LANE);
+          for (let i = 0; i < 12; i++) { const a = Math.random() * Math.PI * 2; particles.push({ x: P.x, y: P.y, vx: Math.cos(a) * 150, vy: Math.sin(a) * 150, life: 0, max: 0.6, size: 3.5, color: i % 2 ? '#c49bff' : '#ffffff', kind: 'spark', h: 22 }); }
+        }
         for (const c of seg.coins) {
           if (c.got) continue;
           const pulled = (fx.magnet > 0 || ride.magnet) && c.s > s - 40 && c.s < s + 320;
+          if (c.air && jumpH < 25 && !pulled) continue;
           if (pulled || (Math.abs(c.s - s) < ride.h / 2 + 12 && Math.abs(c.lane * LANE - lat) < ride.w / 2 + 14)) {
             c.got = true;
             const gain = ride.coin * (modIs('coins') ? 2 : 1);
@@ -1773,6 +1990,7 @@
         particles.push({ x: P.x, y: P.y, vx: (Math.random() - .5) * 30, vy: (Math.random() - .5) * 30, life: 0, max: .35, size: 4 + Math.random() * 3, color: Math.random() < 0.5 ? '#ff8a2a' : '#ffd166', kind: 'spark', h: 6 + alt * FLY_LIFT + jumpH });
       }
       runT += dt;
+      if (reviveT > 0) reviveT -= dt;
       // race start: 3, 2, 1, GO
       if (launchT < 2.2) {
         const before = launchT; launchT += dt;
@@ -1787,7 +2005,11 @@
       crashV *= Math.exp(-5 * dt);
       lat += crashLatV * dt; crashLatV *= Math.exp(-2 * dt);
       carA += spin * dt; spin *= Math.exp(-2.5 * dt);
-      if (crashT > 1.15) showOver();
+      if (crashT > 1.15) offerRevive();
+    } else if (state === 'revive') {
+      const left = reviveUntil - time;
+      ui.reviveBar.style.width = Math.max(0, left / REVIVE_WAIT * 100) + '%';
+      if (left <= 0) declineRevive();
     }
 
     // Springs ease in and out, so turns start and finish softly
@@ -1844,6 +2066,11 @@
     return 'shield';
   }
 
+  function launchRamp() {
+    jumpT = 0.0001; jumpDur = Math.max(0.6, Math.min(1.3, 360 / Math.max(200, effSpeed()))); jumpPeak = 74;
+    popText('AIR!');
+    blip(300, 0.12, 'sawtooth', 0.05); setTimeout(() => blip(600, 0.15, 'triangle', 0.05), 70);
+  }
   function useItem() {
     if (state !== 'play' || !item || rolling > 0) return;
     bump('items');
@@ -1852,7 +2079,7 @@
     if (it === 'shield') { fx.shield = SHIELD_T; blip(520, 0.2, 'triangle', 0.06); }
     else if (it === 'turbo') { fx.turbo = 2; [440, 660, 880].forEach((f, i) => setTimeout(() => blip(f, 0.08, 'sawtooth', 0.05), i * 50)); }
     else if (it === 'magnet') { fx.magnet = 5; blip(300, 0.25, 'sine', 0.08); }
-    else if (it === 'jump') { if (jumpT <= 0) jumpT = 0.0001; blip(400, 0.12, 'square', 0.05); setTimeout(() => blip(800, 0.1, 'square', 0.05), 80); }
+    else if (it === 'jump') { if (jumpT <= 0) { jumpT = 0.0001; jumpDur = JUMP_T; jumpPeak = 44; } blip(400, 0.12, 'square', 0.05); setTimeout(() => blip(800, 0.1, 'square', 0.05), 80); }
     popText(ITEMS[it].label + '!');
     renderItem(true);
   }
@@ -1860,8 +2087,8 @@
   function updateFx(dt) {
     for (const k in fx) fx[k] = Math.max(0, fx[k] - dt);
     if (rolling > 0) { rolling -= dt; if (rolling <= 0) blip(1175, 0.12, 'triangle', 0.05); }
-    if (jumpT > 0) { jumpT += dt; if (jumpT >= JUMP_T) jumpT = 0; }
-    jumpH = jumpT > 0 ? Math.sin(Math.PI * jumpT / JUMP_T) * 44 : 0;
+    if (jumpT > 0) { jumpT += dt; if (jumpT >= jumpDur) { jumpT = 0; if (jumpPeak > 50) { blip(90, 0.18, 'square', 0.06); shake = reduceMotion ? 0 : 4; } } }
+    jumpH = jumpT > 0 ? Math.sin(Math.PI * jumpT / jumpDur) * jumpPeak : 0;
   }
 
   let itemKey = '';
@@ -1981,6 +2208,7 @@
     ui.turnsLabel.textContent = ui.oTurnsLabel.textContent = straight() ? 'MILES' : 'TURNS';
     ui.modeDesc.textContent = straight()
       ? 'No corners, no powerups. One endless road that speeds up twice as fast. Your top speed goes on the Top speed board.'
+      : daily() ? "Today's road is the same for everyone, driven in the Roadster. Your turns go on the Today board, which resets at midnight."
       : 'Take every corner in the box, with powerups and missions. Your turns go on the Most turns board.';
     if (state === 'menu') reset();
     updateHud();
@@ -1989,7 +2217,7 @@
   setTimeout(() => setMode(gameMode), 0);
 
   // ---- Leaderboard tabs ----
-  let boardMode = store.get('boardMode', 'turns') === 'speed' ? 'speed' : 'turns';
+  let boardMode = ['speed', 'today'].includes(store.get('boardMode', 'turns')) ? store.get('boardMode', 'turns') : 'turns';
   function setBoardMode(m) {
     boardMode = m; store.set('boardMode', m);
     for (const b of document.querySelectorAll('.board-tab')) b.setAttribute('aria-pressed', String(b.dataset.mode === m));
@@ -2015,8 +2243,9 @@
     if (C.phase === 'idle' && launchT > 1.55) {
       const warn = warnFor();
       if (s >= C.s0 - v * warn * 0.95 - 30) {
-        const n = Math.random() < 0.5 ? 1 : 2;
-        C.gone = [-1, 0, 1].sort(() => Math.random() - 0.5).slice(0, n);
+        const cr = daily() ? rngFor(seg.n + 7777) : Math.random;
+        const n = cr() < 0.5 ? 1 : 2;
+        C.gone = [-1, 0, 1].sort(() => cr() - 0.5).slice(0, n);
         if (n === 2 && C.gone.includes(-1) && C.gone.includes(1)) C.gone = [C.gone[0], 0];
         C.keep = [-1, 0, 1].filter(l => !C.gone.includes(l));
         C.phase = 'warn'; C.warnAt = time; C.goneAt = time + warn;
@@ -2036,7 +2265,7 @@
       for (let i = 0; i < 2; i++) particles.push({ x: P.x + (Math.random() - .5) * 40, y: P.y + (Math.random() - .5) * 30, vx: (Math.random() - .5) * 60, vy: (Math.random() - .5) * 60, life: 0, max: 0.9, size: 4 + Math.random() * 5, color: '#6b6a66', kind: 'debris', rot: Math.random() * 6, h: 2, vh: 60 + Math.random() * 80 });
     }
     if (!C.survived && s > C.s1 && state === 'play') { C.survived = true; bump('collapse'); }
-    if (arc || jumpH > 10 || ride.hover || s < C.s0 + 10 || s > C.s1 - 10) return;
+    if (arc || reviveT > 0 || jumpH > 10 || ride.hover || s < C.s0 + 10 || s > C.s1 - 10) return;
     // over a lane that has dropped away (the surviving lanes may not be next to each other)
     if (C.gone.some(ln => Math.abs(lat - ln * LANE) < LANE / 2 - 4)) crash(BIOMES[biome].fly ? 'You fell through a gap in the skyway.' : 'The road fell away beneath you.');
   }
@@ -2088,8 +2317,108 @@
     }
   }
 
+  // ---- Boss moments ----
+  function bossReward(msg) {
+    coins += 5; bank += 5; store.set('bank', bank); ui.coins.textContent = coins;
+    bump('coins_run', coins, true);
+    popText(msg + ' +5');
+    [523, 659, 784, 1047, 1319].forEach((f, i) => setTimeout(() => blip(f, 0.12, 'square', 0.05), i * 80));
+  }
+  // where the train's engine is across the road right now
+  function trainHead(T) { return T.t0 === null ? T.x0 : T.x0 + T.dir * T.v * (time - T.t0); }
+  function trainSpans(T) {
+    const out = [], hx = trainHead(T);
+    for (let i = 0; i < T.cars; i++) {
+      const a = hx - T.dir * i * (T.carLen + T.gap), b2 = a - T.dir * T.carLen;
+      out.push([Math.min(a, b2), Math.max(a, b2), i]);
+    }
+    return out;
+  }
+  function updateBoss(seg) {
+    const T = seg.train;
+    if (T && !T.done) {
+      if (T.t0 === null && launchT > 1.55 && s >= T.s - Math.max(1500, effSpeed() * 2.8)) {
+        // time it so the middle of the train is crossing as you arrive
+        const arrive = (T.s - s) / Math.max(150, effSpeed());
+        const L = T.cars * (T.carLen + T.gap);
+        T.x0 = T.dir * L / 2 - T.dir * T.v * arrive;
+        T.t0 = time;
+        showBanner('BOSS', 'Train crossing');
+        blip(220, 0.5, 'sawtooth', 0.05); setTimeout(() => blip(185, 0.7, 'sawtooth', 0.05), 450);
+      }
+      if (T.t0 !== null && reviveT <= 0 && jumpH <= 30 && Math.abs(s - T.s) < ride.h / 2 + 22) {
+        const hw = ride.w / 2 - 2;
+        if (trainSpans(T).some(([a, b2]) => lat + hw > a && lat - hw < b2)) crash('A train flattened you.');
+      }
+      if (T.t0 !== null && s > T.s + 40 && state === 'play') { T.done = true; bossReward('TRAIN DODGED'); }
+    }
+    const Bm = seg.bomb;
+    if (Bm && !Bm.done) {
+      if (!Bm.active && launchT > 1.55 && s >= Bm.at) { Bm.active = true; Bm.t0 = time; showBanner('BOSS', 'Bombing run'); blip(140, 0.8, 'sawtooth', 0.05); }
+      if (Bm.active && !torp && !arc) {
+        if (Bm.left > 0) { torp = { phase: 'seek', t: 0, lane: [-1, 0, 1][Math.floor(Math.random() * 3)], next: 0.2, seg, fast: true }; Bm.left--; }
+        else if (state === 'play') { Bm.done = true; bossReward('BOMBING RUN SURVIVED'); }
+      }
+    }
+  }
+  function drawBossFlat(list) {
+    for (const g of list) {
+      const T = g.train;
+      if (!T) continue;
+      for (let x = -W / 2 - 300; x < W / 2 + 300; x += 24) fillPoly(segQuad(g, x, T.s - 20, x + 9, T.s + 20, 0.2), '#4a3a2a');
+      fillPoly(segQuad(g, -W / 2 - 300, T.s - 13, W / 2 + 300, T.s - 9, 0.4), '#6b6660');
+      fillPoly(segQuad(g, -W / 2 - 300, T.s + 9, W / 2 + 300, T.s + 13, 0.4), '#6b6660');
+    }
+  }
+  function bossItems(list) {
+    for (const g of list) {
+      const T = g.train;
+      if (!T) continue;
+      const on = T.t0 !== null && !T.done;
+      for (const sd of [-1, 1]) {
+        const sp = posOf(g, T.s - 60, sd * (W / 2 + 46)), p = proj(sp.x, sp.y, 0);
+        if (!inView(p, 80)) continue;
+        add(p.z, () => {
+          billboard(sp.x, sp.y, 0);
+          ctx.fillStyle = '#d9d9d4'; ctx.fillRect(-2.5, -70, 5, 70);
+          ctx.save(); ctx.translate(0, -70);
+          for (const r of [0.6, -0.6]) { ctx.save(); ctx.rotate(r); ctx.fillStyle = '#c0312a'; ctx.fillRect(-26, -5, 52, 10); ctx.fillStyle = '#ffffff'; ctx.fillRect(-24, -3, 48, 6); ctx.restore(); }
+          ctx.restore();
+          ctx.fillStyle = '#15171a'; ctx.fillRect(-16, -48, 32, 12);
+          const blink = Math.sin(time * 10) > 0;
+          ctx.fillStyle = on && blink ? '#ff3b3b' : '#4a1515'; circle(ctx, -8, -42, 5);
+          ctx.fillStyle = on && !blink ? '#ff3b3b' : '#4a1515'; circle(ctx, 8, -42, 5);
+          ctx.restore();
+        });
+      }
+      if (T.t0 === null) continue;
+      for (const [a, b2, i] of trainSpans(T)) {
+        const xc = (a + b2) / 2;
+        if (Math.abs(xc) > W / 2 + 1100) continue;
+        const cp = posOf(g, T.s, xc), p = proj(cp.x, cp.y, 0);
+        if (!inView(p, 300)) continue;
+        const cols = i === 0 ? ['#f2b632', '#c98f1a', '#d9a020'] : i % 2 ? ['#a8382a', '#7a271d', '#8f2f23'] : ['#5b6b8c', '#3e4a63', '#4b5876'];
+        add(p.z, () => drawBox(cp.x, cp.y, T.carLen, 44, 48, g.h * Math.PI / 2, cols, i === 0 ? null : 'rgba(255,230,160,0.35)'));
+      }
+    }
+  }
+  function drawBomber() {
+    const g = segs[segIdx], Bm = g && g.bomb;
+    if (!Bm || !Bm.active || Bm.done || state !== 'play') return;
+    const tt = time - Bm.t0, u = vh / 800;
+    const x = ((tt * (vw + 500) / 5) % (vw + 500)) - 250, y = cam.hy * 0.55 + Math.sin(tt * 1.5) * 6;
+    ctx.save(); ctx.translate(x, y); ctx.scale(u * 1.2, u * 1.2);
+    ctx.fillStyle = 'rgba(30,32,40,0.9)';
+    ctx.beginPath(); ctx.ellipse(0, 0, 60, 10, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(-10, -2); ctx.lineTo(18, -48); ctx.lineTo(30, -48); ctx.lineTo(20, 0); ctx.lineTo(30, 48); ctx.lineTo(18, 48); ctx.lineTo(-10, 2); ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(-52, 0); ctx.lineTo(-62, -18); ctx.lineTo(-54, -18); ctx.lineTo(-44, 0); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = 'rgba(200,210,220,0.35)'; for (const py of [-30, -16, 16, 30]) { ctx.beginPath(); ctx.ellipse(26, py, 2, 9, 0, 0, Math.PI * 2); ctx.fill(); }
+    ctx.fillStyle = Math.sin(time * 8) > 0 ? '#ff3b3b' : '#5a1a1a'; circle(ctx, 24, -48, 3);
+    ctx.restore();
+  }
+
   // ---- Roadside billboards ----
-  const SIGN_STYLES = { zone: ['#0f6b45', '#f6f1e4'], hazard: ['#f2b632', '#15171a'], road: ['#f07b2a', '#15171a'], sky: ['#1f4e9c', '#ffffff'] };
+  const SIGN_STYLES = { boss: ['#c0312a', '#ffffff'], zone: ['#0f6b45', '#f6f1e4'], hazard: ['#f2b632', '#15171a'], road: ['#f07b2a', '#15171a'], sky: ['#1f4e9c', '#ffffff'] };
   function drawRoadSign(bp, sg) {
     const [bg, fg] = SIGN_STYLES[sg.style] || SIGN_STYLES.zone;
     place(ctx, bp.x + 12, bp.y + 8, 0, 0); ctx.fillStyle = 'rgba(0,0,0,0.2)'; ctx.fillRect(-90, -6, 180, 12); ctx.restore();
@@ -2148,7 +2477,7 @@
         tp.lane = nl;
         blip(880, 0.05, 'square', 0.035);
       }
-      if (tp.t >= 1.9) {
+      if (tp.t >= (tp.fast ? 0.75 : 1.9)) {
         tp.phase = 'lock'; tp.lane = lane; tp.t = 0;
         tp.sImpact = s + speed * TORP_LEAD;
         blip(1250, 0.3, 'sawtooth', 0.05);
@@ -2162,7 +2491,7 @@
       shake = reduceMotion ? 0 : 7;
       crashNoise();
       torp = null;
-      if (Math.abs(lat - tp.lane * LANE) < 44 && jumpH <= 10 && !ride.hover) {
+      if (Math.abs(lat - tp.lane * LANE) < 44 && jumpH <= 10 && !ride.hover && reviveT <= 0) {
         if (fx.shield > 0 || fx.turbo > 0) { if (fx.turbo <= 0) fx.shield = 0; popText('SHIELD!'); }
         else crash('A torpedo got you.');
       } else bump('torpedo');
@@ -2210,7 +2539,7 @@
 
   // ---- Multiplayer: shared leaderboard and live ghost cars ----
   // Each run is its own road, so ghost cars only show when two players share one; the live list always works.
-  let mp = { user: null, db: null, room: null, myId: null, board: [], boardSpeed: [], myDoc: {}, boardState: 'loading', peers: [], names: {}, note: '' };
+  let mp = { user: null, db: null, room: null, myId: null, board: [], boardSpeed: [], boardToday: [], myDoc: {}, boardState: 'loading', peers: [], names: {}, note: '' };
   let lastPresence = -1, lastLive = -1, boardRender = 0;
 
   function whenClaude(cb, tries = 0) {
@@ -2228,6 +2557,8 @@
         const num = v => { const n = Number(v); return Number.isFinite(n) ? n : 0; };
         mp.board = all.filter(r => num(r.best) > 0).sort((a, b) => num(b.best) - num(a.best)).slice(0, 25)
           .map(r => ({ id: r.id, value: num(r.best), ride: r.ride, icon: r.icon }));
+        mp.boardToday = all.filter(r => r.dDay === todayKey()).map(r => ({ id: r.id, value: num(r.dBest), ride: 'roadster', icon: r.icon }))
+          .filter(r => r.value > 0).sort((a, b) => b.value - a.value).slice(0, 25);
         mp.boardSpeed = all.map(r => ({ id: r.id, value: num(r.sMph), ride: r.sRide || r.ride, icon: r.icon }))
           .filter(r => r.value > 0).sort((a, b) => b.value - a.value).slice(0, 25);
         mp.boardState = 'ok';
@@ -2247,8 +2578,8 @@
   async function renderBoards() {
     const tick = ++boardRender;
     const drivers = liveDrivers();
-    const rows = boardMode === 'speed' ? mp.boardSpeed : mp.board;
-    const ids = [...new Set([...mp.board.map(r => r.id), ...mp.boardSpeed.map(r => r.id), ...mp.peers.map(p => p.by).filter(Boolean)])];
+    const rows = boardMode === 'speed' ? mp.boardSpeed : boardMode === 'today' ? mp.boardToday : mp.board;
+    const ids = [...new Set([...mp.board.map(r => r.id), ...mp.boardSpeed.map(r => r.id), ...mp.boardToday.map(r => r.id), ...mp.peers.map(p => p.by).filter(Boolean)])];
     let ps = {};
     if (mp.user && ids.length) { try { ps = await mp.user.profiles(ids); } catch (e) {} }
     if (tick !== boardRender) return;
@@ -2263,7 +2594,7 @@
       sub.textContent = mp.boardState === 'loading' ? 'Loading scores…'
         : mp.boardState !== 'ok' ? 'The leaderboard is not available in this view.'
         : !rows.length ? 'No scores yet. Finish a run to post the first one.'
-        : boardMode === 'speed' ? 'Fastest top speed in Straight mode.' : 'Most turns in a Classic run.';
+        : boardMode === 'speed' ? 'Fastest top speed in Straight mode.' : boardMode === 'today' ? "Today's daily challenge. Resets at midnight." : 'Most turns in a Classic run.';
       rows.forEach((row, i) => {
         const best = Math.max(0, Math.floor(row.value));
         const li = document.createElement('li');
@@ -2318,11 +2649,13 @@
       return;
     }
     const mine = mp.myDoc || {}, mph = toMph(topSpeed);
-    const oldBest = Number(mine.best) || 0, oldS = Number(mine.sMph) || 0;
-    if ((straight() ? mph <= oldS : turns <= oldBest) && mine.icon === iconId) return;
+    const oldBest = Number(mine.best) || 0, oldS = Number(mine.sMph) || 0, day = todayKey();
+    const oldD = mine.dDay === day ? Number(mine.dBest) || 0 : 0;
+    if ((daily() ? turns <= oldD : straight() ? mph <= oldS : turns <= oldBest) && mine.icon === iconId) return;
     const prev = mp.myDoc;
     const doc = { ...mine, icon: iconId, at: Date.now() };
-    if (straight()) { doc.sMph = Math.max(mph, oldS); doc.sRide = mph > oldS ? ride.id : (mine.sRide || ride.id); }
+    if (daily()) { doc.dDay = day; doc.dBest = Math.max(turns, oldD); }
+    else if (straight()) { doc.sMph = Math.max(mph, oldS); doc.sRide = mph > oldS ? ride.id : (mine.sRide || ride.id); }
     else { doc.best = Math.max(turns, oldBest); doc.ride = turns > oldBest ? ride.id : (mine.ride || ride.id); }
     mp.myDoc = doc;
     mp.db.doc('scores/' + mp.myId).set(doc)
@@ -2933,13 +3266,28 @@
           ctx.restore();
         });
       }
+      if (g.gem && !g.gem.got) {
+        const gp = posOf(g, g.gem.s, g.gem.lane * LANE), p = proj(gp.x, gp.y, 0);
+        if (inView(p, 40)) add(p.z, () => {
+          shadowFlat(gp.x, gp.y, 9, 0.22);
+          billboard(gp.x, gp.y, 24 + Math.sin(time * 3) * 3);
+          const sx = Math.max(0.25, Math.abs(Math.cos(time * 2.5)));
+          const gl = ctx.createRadialGradient(0, 0, 2, 0, 0, 26); gl.addColorStop(0, 'rgba(196,155,255,0.6)'); gl.addColorStop(1, 'rgba(196,155,255,0)');
+          ctx.fillStyle = gl; circle(ctx, 0, 0, 26);
+          ctx.scale(sx, 1);
+          ctx.fillStyle = '#7b4fd6'; ctx.beginPath(); ctx.moveTo(0, -14); ctx.lineTo(11, -3); ctx.lineTo(0, 14); ctx.lineTo(-11, -3); ctx.closePath(); ctx.fill();
+          ctx.fillStyle = '#c49bff'; ctx.beginPath(); ctx.moveTo(0, -14); ctx.lineTo(11, -3); ctx.lineTo(0, -3); ctx.closePath(); ctx.fill();
+          ctx.fillStyle = 'rgba(255,255,255,0.8)'; ctx.beginPath(); ctx.moveTo(-4, -9); ctx.lineTo(0, -12); ctx.lineTo(-1, -5); ctx.closePath(); ctx.fill();
+          ctx.restore();
+        });
+      }
       for (const c of g.coins) {
         if (c.got) continue;
         const cp = posOf(g, c.s, c.lane * LANE), p = proj(cp.x, cp.y, 0);
         if (!inView(p, 30)) continue;
         add(p.z, () => {
           shadowFlat(cp.x, cp.y, 7, 0.2);
-          billboard(cp.x, cp.y, 18 + Math.sin(time * 3 + c.s) * 2.5);
+          billboard(cp.x, cp.y, (c.air ? 60 : 18) + Math.sin(time * 3 + c.s) * 2.5);
           ctx.scale(Math.max(0.18, Math.abs(Math.cos(time * 4 + c.s * 0.05))), 1);
           ctx.fillStyle = '#c9971c'; circle(ctx, 0, 0, 11);
           ctx.fillStyle = '#f5c542'; circle(ctx, 0, 0, 8.5);
@@ -3280,6 +3628,19 @@
         ctx.restore();
         break;
       }
+      case 'ramp': {
+        const f = [Math.sin(base), -Math.cos(base)], rt = [Math.cos(base), Math.sin(base)];
+        const P = (fw, lt, h) => [x + f[0] * fw + rt[0] * lt, y + f[1] * fw + rt[1] * lt, h];
+        const L = 34, Wd = 26, H = 20;
+        fillPoly([P(-L, -Wd, 0), P(L, -Wd, 0), P(L, -Wd, H)], '#8a6a1a');
+        fillPoly([P(-L, Wd, 0), P(L, Wd, 0), P(L, Wd, H)], '#8a6a1a');
+        fillPoly([P(-L, -Wd, 0), P(-L, Wd, 0), P(L, Wd, H), P(L, -Wd, H)], '#f2b632');
+        for (let k = 0; k < 3; k++) {
+          const a0 = -L + 10 + k * 22, a1 = a0 + 9, h0 = H * (a0 + L) / (2 * L), h1 = H * (a1 + L) / (2 * L);
+          fillPoly([P(a0, -Wd + 3, h0 + 0.3), P(a0, Wd - 3, h0 + 0.3), P(a1, Wd - 3, h1 + 0.3), P(a1, -Wd + 3, h1 + 0.3)], '#15171a');
+        }
+        break;
+      }
       case 'hole':
         place(ctx, x, y, 0.5, base + o.rot * 0.2);
         ctx.fillStyle = '#6b5a47'; ctx.beginPath(); ctx.ellipse(0, 0, r * 1.3, r * 1.1, 0, 0, Math.PI * 2); ctx.fill();
@@ -3482,7 +3843,7 @@
       const lean = state === 'crash' ? 0 : Math.max(-0.3, Math.min(0.3, -yawRate * 0.08)), rx = Math.cos(angle), ry = Math.sin(angle);
       const headP = { x: P.x + rx * lean * 20, y: P.y + ry * lean * 20 };
       renderVehicle(ctx, ride.id, va, time, true, h => place(ctx, P.x + rx * lean * h, P.y + ry * lean * h, h, angle), lift, stepFor(p.k) * 0.8, iconId, worldHead(headP, angle, iconId));
-      if (fx.shield > 0 && (fx.shield > 2 || Math.sin(time * 20) > 0)) {
+      if ((fx.shield > 0 && (fx.shield > 2 || Math.sin(time * 20) > 0)) || (reviveT > 0 && Math.sin(time * 14) > -0.3)) {
         billboard(P.x, P.y, lift + 18);
         const r = 44 + Math.sin(time * 5) * 2;
         ctx.fillStyle = 'rgba(111,231,255,0.16)'; circle(ctx, 0, 0, r);
@@ -3550,6 +3911,7 @@
     const list = segs.slice(Math.max(0, segIdx - 2));
     drawRoadsFlat(list);
     drawCollapses(list);
+    drawBossFlat(list);
 
     ctx.fillStyle = '#1a1b1f';
     for (const sk of skids) {
@@ -3588,6 +3950,7 @@
     items.length = 0;
     roadItems(list);
     billboardItems(list);
+    bossItems(list);
     boxItems(list);
     torpItems();
     for (const [b, a] of layers) decoItems(BIOMES[b].deco, bFar, a);
@@ -3609,6 +3972,7 @@
         ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.fillStyle = lg; ctx.fillRect(0, 0, vw, vh); ctx.restore();
       }
     }
+    drawBomber();
     drawWeather();
 
     drawGag();
@@ -3628,6 +3992,7 @@
     if (state !== 'paused') update(dt);
     draw();
     if (state === 'menu') drawPreviews();
+    musicTick();
     drawReveal();
     drawConfetti(dt);
     if (time - lastLive > 0.5 || lastLive < 0) { lastLive = time; renderLive(); }

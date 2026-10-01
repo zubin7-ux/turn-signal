@@ -2,7 +2,7 @@
   // Each run is its own road, so ghost cars only appear when two players share a seed; the live list always works.
   const SUPABASE_URL = '%%SUPABASE_URL%%', SUPABASE_KEY = '%%SUPABASE_KEY%%';
   const MY_KEY = Math.random().toString(36).slice(2, 12);
-  let mp = { sb: null, chan: null, ready: false, board: [], boardSpeed: [], boardState: 'loading', peers: new Map(), note: '' };
+  let mp = { sb: null, chan: null, ready: false, board: [], boardSpeed: [], boardToday: [], boardState: 'loading', peers: new Map(), note: '' };
   let lastPresence = -1, lastLive = -1, lastState = '';
 
   const nameInput = $('playerName');
@@ -42,13 +42,15 @@
   async function loadBoard() {
     if (!mp.sb) return;
     try {
-      const [byTurns, bySpeed] = await Promise.all([
+      const [byTurns, bySpeed, byToday] = await Promise.all([
         mp.sb.from('scores').select('name,turns,ride,icon').eq('mode', 'classic').order('turns', { ascending: false }).limit(300),
-        mp.sb.from('scores').select('name,top_mph,ride,icon').eq('mode', 'straight').not('top_mph', 'is', null).order('top_mph', { ascending: false }).limit(300)
+        mp.sb.from('scores').select('name,top_mph,ride,icon').eq('mode', 'straight').not('top_mph', 'is', null).order('top_mph', { ascending: false }).limit(300),
+        mp.sb.from('scores').select('name,turns,ride,icon').eq('mode', 'd' + todayKey()).order('turns', { ascending: false }).limit(300)
       ]);
       if (byTurns.error) throw byTurns.error;
       mp.board = bestPerName(byTurns.data, 'turns');
       mp.boardSpeed = bySpeed.error ? [] : bestPerName(bySpeed.data, 'top_mph');
+      mp.boardToday = byToday.error ? [] : bestPerName(byToday.data, 'turns');
       mp.boardState = 'ok';
     } catch (e) { if (mp.boardState !== 'ok') mp.boardState = 'off'; }
     renderBoards();
@@ -65,7 +67,7 @@
 
   function renderBoards() {
     const drivers = livePeers();
-    const rows = boardMode === 'speed' ? mp.boardSpeed : mp.board;
+    const rows = boardMode === 'speed' ? mp.boardSpeed : boardMode === 'today' ? mp.boardToday : mp.board;
     const me = myName().toLowerCase();
     const liveNames = new Set(drivers.map(p => cleanName(p.name).toLowerCase()).filter(Boolean));
     for (const el of document.querySelectorAll('.board')) {
@@ -77,7 +79,7 @@
       sub.textContent = mp.boardState === 'loading' ? 'Loading scores…'
         : mp.boardState !== 'ok' ? 'The leaderboard is offline right now. You can still play.'
         : !rows.length ? 'No scores yet. Finish a run to post the first one.'
-        : boardMode === 'speed' ? 'Fastest Straight-mode speed for each name.' : 'Most Classic-mode turns for each name.';
+        : boardMode === 'speed' ? 'Fastest Straight-mode speed for each name.' : boardMode === 'today' ? "Today's daily challenge. Resets at midnight." : 'Most Classic-mode turns for each name.';
       rows.forEach((row, i) => {
         const li = document.createElement('li');
         const mine = me && row.name.toLowerCase() === me;
@@ -133,9 +135,9 @@
     if (!mp.sb) return;
     const mph = toMph(topSpeed);
     // Classic posts when your turns improve, Straight when your top speed improves
-    const key = (straight() ? 'postedS.' : 'posted.') + name.toLowerCase(), val = straight() ? mph : turns;
+    const key = (straight() ? 'postedS.' : daily() ? 'postedD' + todayKey() + '.' : 'posted.') + name.toLowerCase(), val = straight() ? mph : turns;
     if (val <= store.get(key, 0)) return;
-    mp.sb.from('scores').insert({ name, turns, ride: ride.id, top_mph: mph, icon: iconId, mode: gameMode }).then(({ error }) => {
+    mp.sb.from('scores').insert({ name, turns, ride: ride.id, top_mph: mph, icon: iconId, mode: daily() ? 'd' + todayKey() : gameMode }).then(({ error }) => {
       if (error) mp.note = 'Your score could not be posted. Check your connection and try another run.';
       else { mp.note = ''; store.set(key, Math.max(val, store.get(key, 0))); }
       loadBoard();

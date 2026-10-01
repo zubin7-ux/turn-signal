@@ -30,3 +30,7 @@ alter table public.scores add column if not exists icon text check (char_length(
 -- Game mode, so turns (classic) and top speed (straight) get separate boards (added 2026-10-01)
 alter table public.scores add column if not exists mode text not null default 'classic' check (mode in ('classic', 'straight'));
 create index if not exists scores_mode_idx on public.scores (mode);
+
+-- Daily challenge scores use mode = d + YYYYMMDD (added 2026-10-01)
+alter table public.scores drop constraint if exists scores_mode_check;
+alter table public.scores add constraint scores_mode_check check (mode ~ '^(classic|straight|d[0-9]{8})$');
