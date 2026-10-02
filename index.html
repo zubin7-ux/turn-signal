@@ -966,7 +966,7 @@
   }
 
   // ---- Character icons ----
-  // 15 collectible faces, drawn in a -50..50 box. Shown above your car, on ghost cars and on the leaderboard.
+  // 15 collectible faces, drawn in a -50..50 box. Shown above your car and on the leaderboard.
   const ICONS = [
     { id: 'smile', name: 'Smiley', rarity: 'starter' },
     { id: 'frog', name: 'Frog', rarity: 'common' },
@@ -2603,12 +2603,11 @@
     c.fillText(text, 0, y);
   }
 
-  // ---- Multiplayer (public site): username leaderboard + live ghost cars over Supabase ----
-  // Each run is its own road, so ghost cars only appear when two players share a seed; the live list always works.
+  // ---- Leaderboard (public site): usernames and scores over Supabase ----
+  // No live channel: ghost cars and the "driving now" list were dropped because their cost grew with players squared.
   const SUPABASE_URL = 'https://qicjuryvwqjltuwksuoa.supabase.co', SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFpY2p1cnl2d3FqbHR1d2tzdW9hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA3NjE0MzMsImV4cCI6MjEwNjMzNzQzM30.0ALH-kPn1MPNXZ9YtRxFRrrr136Nk5149MHbThAW-eE';
-  const MY_KEY = Math.random().toString(36).slice(2, 12);
-  let mp = { sb: null, chan: null, ready: false, board: [], boardSpeed: [], boardToday: [], boardState: 'loading', peers: new Map(), note: '' };
-  let lastPresence = -1, lastLive = -1, lastState = '';
+  let mp = { sb: null, board: [], boardSpeed: [], boardToday: [], boardState: 'loading', note: '' };
+  let lastLive = -1;
 
   const nameInput = $('playerName');
   const cleanName = v => String(v || '').replace(/[\u0000-\u001f\u007f-\u009f​-‏‪-‮⁠-⁯]/g, '').replace(/\s+/g, ' ').trim().slice(0, 16);
@@ -2625,7 +2624,6 @@
     const words = norm.split(/[^a-z]+/).filter(Boolean).concat(letters);
     return !words.some(c => NAME_FILTER.whole.some(w => c.length >= w.length && squash(c) === squash(w)));
   }
-  const shownName = v => { const nm = cleanName(v); return nm && nameOk(nm) ? nm : 'Driver'; };
   const BAD_NAME_NOTE = 'Pick a different name to post scores. That one is not allowed on the leaderboard.';
   if (nameInput) {
     nameInput.value = store.get('name', '');
@@ -2641,11 +2639,6 @@
     } catch (e) { mp.boardState = 'off'; renderBoards(); return; }
     loadBoard();
     setInterval(loadBoard, 20000);
-    mp.chan = mp.sb.channel('lobby', { config: { broadcast: { self: false } } });
-    mp.chan.on('broadcast', { event: 'pos' }, ({ payload }) => {
-      if (!payload || typeof payload.k !== 'string' || payload.k === MY_KEY) return;
-      mp.peers.set(payload.k, { ...payload, at: Date.now() });
-    }).subscribe(status => { mp.ready = status === 'SUBSCRIBED'; });
   }
   initOnline();
 
@@ -2677,25 +2670,12 @@
     renderBoards();
   }
 
-  function livePeers() {
-    const now = Date.now(), out = [];
-    for (const [k, p] of mp.peers) {
-      if (now - p.at > 3000) { mp.peers.delete(k); continue; }
-      if (p.state === 'play') out.push(p);
-    }
-    return out;
-  }
-
   function renderBoards() {
-    const drivers = livePeers();
     const rows = boardMode === 'speed' ? mp.boardSpeed : boardMode === 'today' ? mp.boardToday : mp.board;
     const me = myName().toLowerCase();
-    const liveNames = new Set(drivers.map(p => cleanName(p.name).toLowerCase()).filter(Boolean));
     for (const el of document.querySelectorAll('.board')) {
       const list = el.querySelector('.board-list'), sub = el.querySelector('.board-sub');
-      const live = el.querySelector('.board-live'), note = el.querySelector('.board-note');
-      live.textContent = drivers.length ? drivers.length + ' driving now' : '';
-      live.hidden = !drivers.length;
+      const note = el.querySelector('.board-note');
       list.textContent = '';
       sub.textContent = mp.boardState === 'loading' ? 'Loading scores…'
         : mp.boardState !== 'ok' ? 'The leaderboard is offline right now. You can still play.'
@@ -2708,7 +2688,6 @@
         const rank = document.createElement('span'); rank.className = 'rank'; rank.textContent = String(i + 1);
         const who = document.createElement('span'); who.className = 'who';
         who.append(iconCanvas(ICONS.some(x => x.id === row.icon) ? row.icon : 'smile', 18));
-        if (liveNames.has(row.name.toLowerCase())) { const dot = document.createElement('i'); dot.className = 'live-dot'; dot.title = 'Driving now'; who.append(dot); }
         who.append(document.createTextNode(row.name + (mine ? ' (you)' : '')));
         const rd = RIDES.find(r => r.id === row.ride);
         if (rd) { const sm = document.createElement('small'); sm.textContent = rd.name; who.append(sm); }
@@ -2723,31 +2702,9 @@
     renderLive();
   }
 
-  function renderLive() {
-    const drivers = livePeers();
-    const show = (state === 'play' || state === 'paused') && drivers.length > 0;
-    ui.live.hidden = !show;
-    if (!show) return;
-    ui.liveList.textContent = '';
-    drivers.sort((a, b) => (Number(b.turns) || 0) - (Number(a.turns) || 0)).slice(0, 5).forEach(p => {
-      const li = document.createElement('li');
-      const n = document.createElement('span'); n.textContent = shownName(p.name);
-      const t = document.createElement('b'); t.textContent = String(Math.max(0, Math.floor(Number(p.turns) || 0)));
-      li.append(n, t);
-      ui.liveList.append(li);
-    });
-  }
-
-  // Positions go out about 3 times a second; other pages fill the gaps by extrapolating.
-  function sendPresence() {
-    if (!mp.chan || !mp.ready || !segs) return;
-    const changed = state !== lastState;
-    if (!changed && (state !== 'play' || (lastPresence >= 0 && time - lastPresence < 0.33))) return;
-    lastPresence = time; lastState = state;
-    mp.chan.send({ type: 'broadcast', event: 'pos', payload: {
-      k: MY_KEY, name: nameOk(myName()) ? myName() : '', icon: iconId, state, track: TRACK, n: segs[segIdx].n, s: Math.round(s), lat: Math.round(lat),
-      v: Math.round(state === 'play' ? speed : 0), ride: ride.id, turns } }).catch(() => {});
-  }
+  // the game loop still calls these; with no live channel there is nothing to show or send
+  function renderLive() { ui.live.hidden = true; }
+  function sendPresence() {}
 
   function postScore() {
     if (turns <= 0) return;
@@ -2767,33 +2724,6 @@
       loadBoard();
     });
   }
-
-  function ghostItems() {
-    for (const q of livePeers()) {
-      if (typeof q.n !== 'number' || q.track !== TRACK) continue;
-      const g = segs.find(x => x.n === q.n);
-      if (!g) continue;
-      const ahead = (Number(q.v) || 0) * Math.min(0.6, Math.max(0, (Date.now() - q.at) / 1000));
-      const sEst = Math.min(g.len + W - 24, (Number(q.s) || 0) + ahead);
-      const latv = Math.max(-W / 2 + 10, Math.min(W / 2 - 10, Number(q.lat) || 0));
-      const P = posOf(g, sEst, latv);
-      const p = proj(P.x, P.y, 0);
-      if (!inView(p, 80)) continue;
-      const id = RIDES.some(r => r.id === q.ride) ? q.ride : 'roadster';
-      const fly = BIOMES[g.biome].fly ? 1 : 0;
-      const label = shownName(q.name) + ' · ' + Math.max(0, Math.floor(Number(q.turns) || 0));
-      add(p.z, () => {
-        const gi = typeof q.icon === 'string' ? q.icon : 'smile';
-        renderVehicle(ctx, id, fly, time, false, h => place(ctx, P.x, P.y, h, g.h * Math.PI / 2), fly * FLY_LIFT, stepFor(p.k) * 1.2, gi, worldHead(P, g.h * Math.PI / 2, gi));
-        const t = proj(P.x, P.y, fly * FLY_LIFT + 50);
-        ctx.font = '700 12px Overpass, system-ui, sans-serif';
-        const w = ctx.measureText(label).width + 14;
-        ctx.fillStyle = 'rgba(15,20,30,0.75)'; rr(ctx, t.sx - w / 2, t.sy - 19, w, 19, 9.5); ctx.fill();
-        ctx.fillStyle = '#ffffff'; ctx.textAlign = 'center'; ctx.fillText(label, t.sx, t.sy - 5); ctx.textAlign = 'start';
-      }, 0.55);
-    }
-  }
-
   // ---- Drawing helpers ----
   function hash(i, j) {
     let n = (Math.imul(i, 374761393) + Math.imul(j, 668265263)) | 0;
@@ -4054,7 +3984,6 @@
     torpItems();
     for (const [b, a] of layers) decoItems(BIOMES[b].deco, bFar, a);
     carItem(P, carA + tilt);
-    ghostItems();
     particleItems();
     items.sort((a, b) => b.z - a.z);
     for (const it of items) { ctx.globalAlpha = it.a * fogAlpha(it.z); it.fn(); }

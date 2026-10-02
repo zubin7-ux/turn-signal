@@ -944,7 +944,7 @@
   }
 
   // ---- Character icons ----
-  // 15 collectible faces, drawn in a -50..50 box. Shown above your car, on ghost cars and on the leaderboard.
+  // 15 collectible faces, drawn in a -50..50 box. Shown above your car and on the leaderboard.
   const ICONS = [
     { id: 'smile', name: 'Smiley', rarity: 'starter' },
     { id: 'frog', name: 'Frog', rarity: 'common' },
@@ -2577,8 +2577,7 @@
     c.fillText(text, 0, y);
   }
 
-  // ---- Multiplayer: shared leaderboard and live ghost cars ----
-  // Each run is its own road, so ghost cars only show when two players share one; the live list always works.
+  // ---- Multiplayer: shared leaderboard and a live list of who is driving ----
   let mp = { user: null, db: null, room: null, myId: null, board: [], boardSpeed: [], boardToday: [], myDoc: {}, boardState: 'loading', peers: [], names: {}, note: '' };
   let lastPresence = -1, lastLive = -1, boardRender = 0;
 
@@ -2676,10 +2675,9 @@
 
   function sendPresence() {
     if (!mp.room || !segs) return;
-    if (lastPresence >= 0 && time - lastPresence < 0.12) return;
+    if (lastPresence >= 0 && time - lastPresence < 0.5) return;
     lastPresence = time;
-    mp.room.presence({ track: TRACK, state, n: segs[segIdx].n, s: Math.round(s), lat: Math.round(lat),
-      v: Math.round(state === 'play' ? speed : 0), ride: ride.id, icon: iconId, turns }).catch(() => {});
+    mp.room.presence({ state, icon: iconId, turns }).catch(() => {});
   }
 
   function postScore() {
@@ -2705,34 +2703,6 @@
         mp.note = 'Your score could not be posted. Ask whoever shared this game to give you edit access.';
         renderBoards();
       });
-  }
-
-  function ghostItems() {
-    for (const peer of mp.peers) {
-      if (peer.kind !== 'viewer' || peer.sameTab) continue;
-      const q = peer.presence || {};
-      if (q.state !== 'play' || q.track !== TRACK || typeof q.n !== 'number') continue;
-      const g = segs.find(x => x.n === q.n);
-      if (!g) continue;
-      const ahead = (Number(q.v) || 0) * Math.min(0.4, Math.max(0, (Date.now() - peer.updatedAt) / 1000));
-      const sEst = Math.min(g.len + W - 24, (Number(q.s) || 0) + ahead);
-      const latv = Math.max(-W / 2 + 10, Math.min(W / 2 - 10, Number(q.lat) || 0));
-      const P = posOf(g, sEst, latv);
-      const p = proj(P.x, P.y, 0);
-      if (!inView(p, 80)) continue;
-      const id = RIDES.some(r => r.id === q.ride) ? q.ride : 'roadster';
-      const fly = BIOMES[g.biome].fly ? 1 : 0;
-      const label = (nameOf(peer.by) || 'Driver') + ' · ' + Math.max(0, Math.floor(Number(q.turns) || 0));
-      add(p.z, () => {
-        const gi = typeof q.icon === 'string' ? q.icon : 'smile';
-        renderVehicle(ctx, id, fly, time, false, h => place(ctx, P.x, P.y, h, g.h * Math.PI / 2), fly * FLY_LIFT, stepFor(p.k) * 1.2, gi, worldHead(P, g.h * Math.PI / 2, gi));
-        const t = proj(P.x, P.y, fly * FLY_LIFT + 50);
-        ctx.font = '700 12px Overpass, system-ui, sans-serif';
-        const w = ctx.measureText(label).width + 14;
-        ctx.fillStyle = 'rgba(15,20,30,0.75)'; rr(ctx, t.sx - w / 2, t.sy - 19, w, 19, 9.5); ctx.fill();
-        ctx.fillStyle = '#ffffff'; ctx.textAlign = 'center'; ctx.fillText(label, t.sx, t.sy - 5); ctx.textAlign = 'start';
-      }, 0.55);
-    }
   }
 
   // ---- Drawing helpers ----
@@ -3995,7 +3965,6 @@
     torpItems();
     for (const [b, a] of layers) decoItems(BIOMES[b].deco, bFar, a);
     carItem(P, carA + tilt);
-    ghostItems();
     particleItems();
     items.sort((a, b) => b.z - a.z);
     for (const it of items) { ctx.globalAlpha = it.a * fogAlpha(it.z); it.fn(); }
