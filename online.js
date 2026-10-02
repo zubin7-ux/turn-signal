@@ -8,9 +8,25 @@
   const nameInput = $('playerName');
   const cleanName = v => String(v || '').replace(/[\u0000-\u001f\u007f-\u009f​-‏‪-‮⁠-⁯]/g, '').replace(/\s+/g, ' ').trim().slice(0, 16);
   function myName() { return cleanName(nameInput ? nameInput.value : ''); }
+
+  // Name filter. The same word list and rules run in the database (mod.py filter), so this is just early feedback.
+  const NAME_FILTER = %%NAME_FILTER%%;
+  const LEET = { '0': 'o', '1': 'i', '3': 'e', '4': 'a', '5': 's', '7': 't', '@': 'a', '$': 's', '!': 'i', '|': 'i' };
+  const squash = w => w.replace(/(.)\1+/g, '$1');
+  function nameOk(name) {
+    const norm = String(name).toLowerCase().replace(/[013457@$!|]/g, c => LEET[c]);
+    const letters = norm.replace(/[^a-z]/g, '');
+    if (NAME_FILTER.inside.some(w => squash(letters).includes(w))) return false;
+    const words = norm.split(/[^a-z]+/).filter(Boolean).concat(letters);
+    return !words.some(c => NAME_FILTER.whole.some(w => c.length >= w.length && squash(c) === squash(w)));
+  }
+  const shownName = v => { const nm = cleanName(v); return nm && nameOk(nm) ? nm : 'Driver'; };
+  const BAD_NAME_NOTE = 'Pick a different name to post scores. That one is not allowed on the leaderboard.';
   if (nameInput) {
     nameInput.value = store.get('name', '');
-    nameInput.addEventListener('input', () => { store.set('name', myName()); renderBoards(); });
+    const check = () => { const bad = myName() && !nameOk(myName()); nameInput.setCustomValidity(bad ? BAD_NAME_NOTE : ''); if (bad) mp.note = BAD_NAME_NOTE; else if (mp.note === BAD_NAME_NOTE) mp.note = ''; };
+    nameInput.addEventListener('input', () => { store.set('name', myName()); check(); renderBoards(); });
+    check();
   }
 
   function initOnline() {
@@ -33,7 +49,7 @@
     const seen = new Set(), rows = [];
     for (const r of data || []) {
       const nm = cleanName(r.name), key = nm.toLowerCase(), v = Math.max(0, Math.floor(Number(r[field]) || 0));
-      if (!nm || !v || seen.has(key)) continue;
+      if (!nm || !v || seen.has(key) || !nameOk(nm)) continue;
       seen.add(key); rows.push({ name: nm, value: v, ride: r.ride, icon: r.icon });
       if (rows.length >= 25) break;
     }
@@ -110,7 +126,7 @@
     ui.liveList.textContent = '';
     drivers.sort((a, b) => (Number(b.turns) || 0) - (Number(a.turns) || 0)).slice(0, 5).forEach(p => {
       const li = document.createElement('li');
-      const n = document.createElement('span'); n.textContent = cleanName(p.name) || 'Driver';
+      const n = document.createElement('span'); n.textContent = shownName(p.name);
       const t = document.createElement('b'); t.textContent = String(Math.max(0, Math.floor(Number(p.turns) || 0)));
       li.append(n, t);
       ui.liveList.append(li);
@@ -124,7 +140,7 @@
     if (!changed && (state !== 'play' || (lastPresence >= 0 && time - lastPresence < 0.33))) return;
     lastPresence = time; lastState = state;
     mp.chan.send({ type: 'broadcast', event: 'pos', payload: {
-      k: MY_KEY, name: myName(), icon: iconId, state, track: TRACK, n: segs[segIdx].n, s: Math.round(s), lat: Math.round(lat),
+      k: MY_KEY, name: nameOk(myName()) ? myName() : '', icon: iconId, state, track: TRACK, n: segs[segIdx].n, s: Math.round(s), lat: Math.round(lat),
       v: Math.round(state === 'play' ? speed : 0), ride: ride.id, turns } }).catch(() => {});
   }
 
@@ -132,13 +148,16 @@
     if (turns <= 0) return;
     const name = myName();
     if (!name) { mp.note = 'Type a name on the start screen to post your scores.'; renderBoards(); return; }
+    if (!nameOk(name)) { mp.note = BAD_NAME_NOTE; renderBoards(); return; }
     if (!mp.sb) return;
     const mph = toMph(topSpeed);
     // Classic posts when your turns improve, Straight when your top speed improves
     const key = (straight() ? 'postedS.' : daily() ? 'postedD' + todayKey() + '.' : 'posted.') + name.toLowerCase(), val = straight() ? mph : turns;
     if (val <= store.get(key, 0)) return;
-    mp.sb.from('scores').insert({ name, turns, ride: ride.id, top_mph: mph, icon: iconId, mode: daily() ? 'd' + todayKey() : gameMode }).then(({ error }) => {
-      if (error) mp.note = 'Your score could not be posted. Check your connection and try another run.';
+    mp.sb.from('scores').insert({ name, turns, ride: ride.id, top_mph: mph, secs: Math.round(runSecs), icon: iconId, mode: daily() ? 'd' + todayKey() : gameMode }).then(({ error }) => {
+      if (error) mp.note = /name/i.test(error.message || '') ? BAD_NAME_NOTE
+        : /too fast|slow down/i.test(error.message || '') ? 'Scores are coming in too fast. Your next run will post.'
+        : 'Your score could not be posted. Check your connection and try another run.';
       else { mp.note = ''; store.set(key, Math.max(val, store.get(key, 0))); }
       loadBoard();
     });
@@ -157,7 +176,7 @@
       if (!inView(p, 80)) continue;
       const id = RIDES.some(r => r.id === q.ride) ? q.ride : 'roadster';
       const fly = BIOMES[g.biome].fly ? 1 : 0;
-      const label = (cleanName(q.name) || 'Driver') + ' · ' + Math.max(0, Math.floor(Number(q.turns) || 0));
+      const label = shownName(q.name) + ' · ' + Math.max(0, Math.floor(Number(q.turns) || 0));
       add(p.z, () => {
         const gi = typeof q.icon === 'string' ? q.icon : 'smile';
         renderVehicle(ctx, id, fly, time, false, h => place(ctx, P.x, P.y, h, g.h * Math.PI / 2), fly * FLY_LIFT, stepFor(p.k) * 1.2, gi, worldHead(P, g.h * Math.PI / 2, gi));

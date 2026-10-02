@@ -28,6 +28,8 @@ def main():
     start = game.index("  // ---- Multiplayer: shared leaderboard")
     end = game.index("  // ---- Drawing helpers ----")
     online = online.replace("%%SUPABASE_URL%%", config["url"]).replace("%%SUPABASE_KEY%%", config["anonKey"])
+    words = json.loads((ROOT / "namefilter.json").read_text())
+    online = online.replace("%%NAME_FILTER%%", json.dumps({"inside": words["inside"], "whole": words["whole"]}))
     page = game[:start] + online + game[end:]
 
     page = swap(page, '      <button class="go" id="startBtn"', '''      <label class="name-field" for="playerName"><span>YOUR NAME</span>

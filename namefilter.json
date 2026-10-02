@@ -1,0 +1,5 @@
+{
+  "_about": "Leaderboard name filter, shared by online.js and the database. Edit here, then run python3 build.py (site) and python3 mod.py filter (database).",
+  "inside": ["fuck", "fuk", "fck", "shit", "cunt", "niga", "niger", "negro", "bitch", "whore", "slut", "nazi", "hitler", "penis", "vagina", "fag", "porn", "pusy", "dildo", "retard", "jiz", "twat", "wank", "bastard", "hentai", "trany", "molest", "rapist", "ashole", "dumbas", "jackas"],
+  "whole": ["ass", "arse", "dick", "dicks", "cock", "cocks", "cum", "sex", "sexy", "tit", "tits", "titty", "boob", "boobs", "rape", "raped", "pedo", "anal", "kkk", "kys", "coon", "spic", "kike", "chink", "dyke", "hoe", "hoes", "nude", "nudes", "xxx", "piss", "milf", "thot"]
+}
