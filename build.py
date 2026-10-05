@@ -12,6 +12,8 @@ import sys
 
 ROOT = pathlib.Path(__file__).parent
 SUPABASE_JS = "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"
+# Rewarded ads; only active when the game is served by CrazyGames
+CRAZYGAMES_SDK = "https://sdk.crazygames.com/crazygames-sdk-v3.js"
 
 
 def swap(text, old, new):
@@ -61,6 +63,7 @@ def main():
         "<meta name=\"description\" content=\"A chase-cam driving game. Take every corner inside the box, dodge obstacles, and climb the class leaderboard.\">\n"
         "<style>*,*::before,*::after{box-sizing:border-box}[hidden]{display:none!important}</style>\n"
         f"<script src=\"{SUPABASE_JS}\"></script>\n"
+        f"<script src=\"{CRAZYGAMES_SDK}\"></script>\n"
     )
     # Move the page's own <title>/<link>/<style> into <head>, the rest into <body>
     body_start = page.index('<canvas id="c"')

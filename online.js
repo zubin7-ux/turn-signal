@@ -1,7 +1,7 @@
   // ---- Leaderboard (public site): usernames and scores over Supabase ----
   // No live channel: ghost cars and the "driving now" list were dropped because their cost grew with players squared.
   const SUPABASE_URL = '%%SUPABASE_URL%%', SUPABASE_KEY = '%%SUPABASE_KEY%%';
-  let mp = { sb: null, board: [], boardSpeed: [], boardToday: [], boardState: 'loading', note: '' };
+  let mp = { sb: null, board: [], boardSpeed: [], boardToday: [], boardRevived: [], boardState: 'loading', note: '' };
   let lastLive = -1;
 
   const nameInput = $('playerName');
@@ -43,7 +43,7 @@
     for (const r of data || []) {
       const nm = cleanName(r.name), key = nm.toLowerCase(), v = Math.max(0, Math.floor(Number(r[field]) || 0));
       if (!nm || !v || seen.has(key) || !nameOk(nm)) continue;
-      seen.add(key); rows.push({ name: nm, value: v, ride: r.ride, icon: r.icon });
+      seen.add(key); rows.push({ name: nm, value: v, ride: r.ride, icon: r.icon, revives: Math.max(0, Math.floor(Number(r.revives) || 0)), mode: r.mode });
       if (rows.length >= 25) break;
     }
     return rows;
@@ -51,22 +51,25 @@
   async function loadBoard() {
     if (!mp.sb) return;
     try {
-      const [byTurns, bySpeed, byToday] = await Promise.all([
-        mp.sb.from('scores').select('name,turns,ride,icon').eq('mode', 'classic').order('turns', { ascending: false }).limit(300),
-        mp.sb.from('scores').select('name,top_mph,ride,icon').eq('mode', 'straight').not('top_mph', 'is', null).order('top_mph', { ascending: false }).limit(300),
-        mp.sb.from('scores').select('name,turns,ride,icon').eq('mode', 'd' + todayKey()).order('turns', { ascending: false }).limit(300)
+      // runs that used a revive (revives > 0) only show on the Revives board
+      const [byTurns, bySpeed, byToday, byRevived] = await Promise.all([
+        mp.sb.from('scores').select('name,turns,ride,icon').eq('mode', 'classic').eq('revives', 0).order('turns', { ascending: false }).limit(300),
+        mp.sb.from('scores').select('name,top_mph,ride,icon').eq('mode', 'straight').eq('revives', 0).not('top_mph', 'is', null).order('top_mph', { ascending: false }).limit(300),
+        mp.sb.from('scores').select('name,turns,ride,icon').eq('mode', 'd' + todayKey()).eq('revives', 0).order('turns', { ascending: false }).limit(300),
+        mp.sb.from('scores').select('name,turns,ride,icon,revives,mode').gt('revives', 0).order('turns', { ascending: false }).limit(300)
       ]);
       if (byTurns.error) throw byTurns.error;
       mp.board = bestPerName(byTurns.data, 'turns');
       mp.boardSpeed = bySpeed.error ? [] : bestPerName(bySpeed.data, 'top_mph');
       mp.boardToday = byToday.error ? [] : bestPerName(byToday.data, 'turns');
+      mp.boardRevived = byRevived.error ? [] : bestPerName(byRevived.data, 'turns');
       mp.boardState = 'ok';
     } catch (e) { if (mp.boardState !== 'ok') mp.boardState = 'off'; }
     renderBoards();
   }
 
   function renderBoards() {
-    const rows = boardMode === 'speed' ? mp.boardSpeed : boardMode === 'today' ? mp.boardToday : mp.board;
+    const rows = boardMode === 'speed' ? mp.boardSpeed : boardMode === 'today' ? mp.boardToday : boardMode === 'revive' ? mp.boardRevived : mp.board;
     const me = myName().toLowerCase();
     for (const el of document.querySelectorAll('.board')) {
       const list = el.querySelector('.board-list'), sub = el.querySelector('.board-sub');
@@ -75,7 +78,7 @@
       sub.textContent = mp.boardState === 'loading' ? 'Loading scores…'
         : mp.boardState !== 'ok' ? 'The leaderboard is offline right now. You can still play.'
         : !rows.length ? 'No scores yet. Finish a run to post the first one.'
-        : boardMode === 'speed' ? 'Fastest Straight-mode speed for each name.' : boardMode === 'today' ? "Today's daily challenge. Resets at midnight." : 'Most Classic-mode turns for each name.';
+        : BOARD_SUBS[boardMode] || BOARD_SUBS.turns;
       rows.forEach((row, i) => {
         const li = document.createElement('li');
         const mine = me && row.name.toLowerCase() === me;
@@ -84,6 +87,8 @@
         const who = document.createElement('span'); who.className = 'who';
         who.append(iconCanvas(ICONS.some(x => x.id === row.icon) ? row.icon : 'smile', 18));
         who.append(document.createTextNode(row.name + (mine ? ' (you)' : '')));
+        if (row.revives > 0) who.append(heartsEl(row.revives));
+        if (boardMode === 'revive' && row.mode && row.mode !== 'classic') { const sm = document.createElement('small'); sm.textContent = row.mode === 'straight' ? 'Straight' : 'Daily'; who.append(sm); }
         const rd = RIDES.find(r => r.id === row.ride);
         if (rd) { const sm = document.createElement('small'); sm.textContent = rd.name; who.append(sm); }
         const pts = document.createElement('span'); pts.className = 'pts'; pts.textContent = String(row.value);
@@ -108,10 +113,10 @@
     if (!nameOk(name)) { mp.note = BAD_NAME_NOTE; renderBoards(); return; }
     if (!mp.sb) return;
     const mph = toMph(topSpeed);
-    // Classic posts when your turns improve, Straight when your top speed improves
-    const key = (straight() ? 'postedS.' : daily() ? 'postedD' + todayKey() + '.' : 'posted.') + name.toLowerCase(), val = straight() ? mph : turns;
+    // Classic posts when your turns improve, Straight when your top speed improves; revived runs keep their own best
+    const key = (revivesUsed ? 'postedR.' + gameMode + '.' : straight() ? 'postedS.' : daily() ? 'postedD' + todayKey() + '.' : 'posted.') + name.toLowerCase(), val = straight() && !revivesUsed ? mph : turns;
     if (val <= store.get(key, 0)) return;
-    mp.sb.from('scores').insert({ name, turns, ride: ride.id, top_mph: mph, secs: Math.round(runSecs), icon: iconId, mode: daily() ? 'd' + todayKey() : gameMode }).then(({ error }) => {
+    mp.sb.from('scores').insert({ name, turns, ride: ride.id, top_mph: mph, secs: Math.round(runSecs), revives: revivesUsed, icon: iconId, mode: daily() ? 'd' + todayKey() : gameMode }).then(({ error }) => {
       if (error) mp.note = /name/i.test(error.message || '') ? BAD_NAME_NOTE
         : /too fast|slow down/i.test(error.message || '') ? 'Scores are coming in too fast. Your next run will post.'
         : 'Your score could not be posted. Check your connection and try another run.';
