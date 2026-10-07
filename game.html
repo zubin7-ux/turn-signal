@@ -755,18 +755,19 @@
     }
     return zoneOrders[c];
   }
-  // Boss moments: two per lap of worlds, in a shuffled order and at shuffled spots each lap. The train needs rails,
-  // so it always comes in the ground worlds (road pieces 0-15 of a lap); the bombing run can come over the ground or the sky.
-  // Seeded from the road, so the Daily road gets the same bosses for everyone.
+  // Boss moments: three per lap of worlds, shuffled each lap. Two come in the ground worlds (road pieces 0-15 of a lap)
+  // and one in the sky or space (16-27). The train and the big rig need a road, the mothership stays in the air,
+  // and the bombing run can come anywhere. Seeded from the road, so the Daily road gets the same bosses for everyone.
   let bossPlans = [];
   function bossOf(n) {
     if (n <= 0) return null;
     const lap = Math.floor(n / LOOP_LEN);
     if (!bossPlans[lap]) {
       const R = rngFor(-5000 - lap);
-      bossPlans[lap] = R() < 0.5
-        ? { [6 + Math.floor(R() * 4)]: 'train', [17 + Math.floor(R() * 5)]: 'bomb' }
-        : { [5 + Math.floor(R() * 4)]: 'bomb', [11 + Math.floor(R() * 4)]: 'train' };
+      const air = R() < 0.5 ? 'ufo' : 'bomb';
+      const pool = ['train', 'rig', 'bomb'].filter(b => b !== air);
+      const first = pool.splice(Math.floor(R() * pool.length), 1)[0], second = pool[Math.floor(R() * pool.length)];
+      bossPlans[lap] = { [5 + Math.floor(R() * 4)]: first, [11 + Math.floor(R() * 4)]: second, [17 + Math.floor(R() * 10)]: air };
     }
     return bossPlans[lap][n % LOOP_LEN] || null;
   }
@@ -822,7 +823,7 @@
     V('police', 'Cruiser', 'police', 'rare', { color: '#f4f4f0', hood: '#15171a', roof: '#f4f4f0', lights: true }, { lane: 25, torpImmune: true, perk: 'Fastest lane changes, and its radar jams torpedoes so they never lock on.' }),
     V('goldcab', 'Gold Cab', 'taxi', 'rare', { color: '#f5c542', roof: '#e0ad2a', sign: true, checker: true }, { lane: 12, coin: 3, perk: 'Every coin counts triple.' }),
     V('bouncer', 'Bouncer', 'roadster', 'rare', { color: '#ff7ac8', roof: '#e25fae', stripe: '#fff0f8' }, { lane: 14, autoHop: true, perk: 'Hops over holes all by itself.' }),
-    V('monster', 'Monster', 'monster', 'epic', { color: '#7a4fe0', roof: '#6a42c8' }, { lane: 11, smash: ['cone', 'tumbleweed', 'crate', 'barrel', 'snowman', 'ice', 'rock', 'hay', 'sawhorse', 'trashcan', 'cactus', 'skull', 'sandcastle', 'beachball'], perk: 'Crushes almost anything small in the road: cones, crates, barrels, hay, trash cans, rocks and more. Each one slows it a little.' }),
+    V('monster', 'Monster', 'monster', 'epic', { color: '#7a4fe0', roof: '#6a42c8' }, { lane: 11, smash: ['cone', 'tumbleweed', 'hay', 'sawhorse', 'trashcan', 'sandcastle', 'beachball'], perk: 'Crushes soft things in the road: cones, hay, trash cans, road barriers, tumbleweeds, beach balls and sandcastles.' }),
     V('phantom', 'Phantom', 'roadster', 'epic', { color: '#2a2346', roof: '#1d1830', stripe: '#b36bff' }, { lane: 15, phases: 3, perk: 'Phases through the first 3 things it hits each run.' }),
     V('magneto', 'Magneto', 'police', 'epic', { color: '#d64fd6', hood: '#3a1f4a', roof: '#d64fd6' }, { lane: 16, magnet: true, coin: 2, perk: 'A coin magnet that never turns off, plus double coins.' }),
     V('golden', 'Golden Legend', 'roadster', 'legendary', { color: '#f5c542', roof: '#d9a92e', stripe: '#fff4c2' }, { lane: 16, coin: 3, shieldEvery: 5, startItem: 'shield', perk: 'Triple coins, and a fresh Shield every 5 turns.' }),
@@ -893,7 +894,7 @@
     let len = straight() ? 950 + R() * 350 + sp * 0.6 : first ? 760 : long ? 1400 + R() * 900 + sp * 2.4 : 420 + R() * 420 + sp * 0.5;
     // boss moments: a train crossing and a bombing run, once each per lap (see bossOf)
     const bossKind = bossOf(n);
-    if (bossKind) len = Math.max(len, bossKind === 'train' ? 1500 + sp * 1.2 : 1600 + sp * 4.6);
+    if (bossKind) len = Math.max(len, bossKind === 'train' ? 1500 + sp * 1.2 : bossKind === 'rig' ? 900 + sp * 11.5 : bossKind === 'ufo' ? 900 + sp * 13 : 1600 + sp * 7);
     const turn = straight() ? 0 : h === 0 ? (R() < 0.5 ? -1 : 1) : (h === 1 ? -1 : 1);
     const obs = [], coinsArr = [], boxes = [];
     let y = first ? 320 : 190 + sp * 0.1 + R() * 60;
@@ -992,11 +993,17 @@
     }
     // the odd roadside billboard
     const board = n >= 1 && len > 600 && R() < 0.45 ? { s: 140 + R() * (len - 600), side: R() < 0.5 ? -1 : 1 } : null;
-    let train = null, bomb = null;
+    let train = null, bomb = null, rig = null, ufo = null;
     if (bossKind === 'train') {
       train = { s: len * 0.55, dir: R() < 0.5 ? -1 : 1, v: 160, cars: 6, carLen: 110, gap: 150, t0: null, done: false };
       for (const arr of [obs, coinsArr, boxes]) for (let i = arr.length - 1; i >= 0; i--) if (Math.abs(arr[i].s - train.s) < 260) arr.splice(i, 1);
     } else if (bossKind === 'bomb') bomb = { at: 260, left: 3, active: false, done: false };
+    else if (bossKind === 'rig' || bossKind === 'ufo') {
+      // the boss is the only thing in the road, so its patterns can never trap you
+      for (const arr of [obs, boxes]) for (let i = arr.length - 1; i >= 0; i--) if (arr[i].s > 300) arr.splice(i, 1);
+      if (bossKind === 'rig') rig = { at: 300, phase: 'idle', lane: 0, lat: 0, gap: 1500, drops: 6, plan: null, blink: 0, last: null, done: false };
+      else ufo = { at: 300, phase: 'idle', zaps: 6, lanes: [], until: 0, done: false };
+    }
     // a rare gem, tucked past a row in an open lane
     let gem = null;
     if (n >= 3 && rowsFree.length && R() < 0.06) {
@@ -1004,7 +1011,7 @@
       gem = { s: row.y + 110, lane: row.free[Math.floor(R() * row.free.length)], got: false };
       if (gem.s > len - 150) gem = null;
     }
-    return { S, h, len, turn, gem, obs, coins: coinsArr, boxes, torps, board, collapse, train, bomb, n, biome: biomeOf(n) };
+    return { S, h, len, turn, gem, obs, coins: coinsArr, boxes, torps, board, collapse, train, bomb, rig, ufo, n, biome: biomeOf(n) };
   }
 
   function nextStart(seg) {
@@ -2033,7 +2040,7 @@
         crash(BIOMES[biome].fly ? 'Too late. You flew straight off the skyway.' : 'Too late. You hit the barrier.');
       }
       if (state === 'play' && seg.collapse) updateCollapse(seg);
-      if (state === 'play' && (seg.train || seg.bomb)) updateBoss(seg);
+      if (state === 'play' && (seg.train || seg.bomb || seg.rig || seg.ufo)) updateBoss(seg);
       seg = segs[segIdx];
       if (state === 'play') {
         const hw = ride.w / 2 - 3, hl = ride.h / 2 - 4;
@@ -2079,8 +2086,6 @@
               const P = posOf(seg, oS(o), obsLat(o));
               burst(P.x, P.y, obstacleColors(o.kind), 16, 240);
               shake = reduceMotion ? 0 : 3;
-              speed = Math.max(ride.start, speed * 0.95);
-              ui.mph.textContent = toMph(speed);
               blip(140, 0.12, 'sawtooth', 0.06);
             } else {
               crash(o.kind === 'hole' ? 'You fell into a hole.' : o.kind === 'lavapool' ? 'You drove into lava.' : 'You hit ' + KINDS[o.kind].name + '.');
@@ -2528,15 +2533,104 @@
     }
     const Bm = seg.bomb;
     if (Bm && !Bm.done) {
-      if (!Bm.active && launchT > 1.55 && s >= Bm.at) { Bm.active = true; Bm.t0 = time; showBanner('BOSS', 'Bombing run'); blip(140, 0.8, 'sawtooth', 0.05); }
-      if (Bm.active && !torp && !arc) {
-        if (Bm.left > 0) { torp = { phase: 'seek', t: 0, lane: [-1, 0, 1][Math.floor(Math.random() * 3)], next: 0.2, seg, fast: true }; Bm.left--; }
-        else if (state === 'play') { Bm.done = true; bossReward('BOMBING RUN SURVIVED'); }
+      if (!Bm.active && launchT > 1.55 && s >= Bm.at) {
+        Bm.active = true; Bm.t0 = time; showBanner('BOSS', 'Bombing run');
+        // engine drone while it flies in
+        for (let i = 0; i < 6; i++) setTimeout(() => blip(110 + i * 6, 0.35, 'sawtooth', 0.035), i * 300);
       }
+      // the plane flies in first; the bombs only start once it is overhead
+      if (Bm.active && time - Bm.t0 > BOMBER_ARRIVE && !torp && !arc) {
+        if (Bm.left > 0) { torp = { phase: 'seek', t: 0, lane: [-1, 0, 1][Math.floor(Math.random() * 3)], next: 0.2, seg, fast: true }; Bm.left--; }
+        else if (state === 'play') { Bm.done = true; Bm.doneT = time; bossReward('BOMBING RUN SURVIVED'); }
+      }
+    }
+    if (seg.rig) updateRig(seg);
+    if (seg.ufo && !seg.ufo.done) updateUfo(seg);
+  }
+
+  // Runaway big rig: a semi drives ahead of you and drops crates out the back. It signals, swerves into a lane,
+  // then drops, so the lane it is in is the lane to leave.
+  function updateRig(seg) {
+    const G = seg.rig, v = Math.max(150, effSpeed()), want = Math.max(450, v * 1.05);
+    if (G.phase === 'idle') {
+      if (launchT <= 1.55 || s < G.at) return;
+      G.phase = 'enter'; G.t0 = time; G.tl = time; G.gap = want + 900;
+      G.lane = [-1, 0, 1][Math.floor(Math.random() * 3)]; G.lat = G.lane * LANE;
+      showBanner('BOSS', 'Runaway big rig');
+      blip(98, 0.6, 'sawtooth', 0.06); setTimeout(() => blip(123, 0.5, 'sawtooth', 0.06), 260);
+    }
+    const dtl = Math.min(0.05, time - G.tl); G.tl = time;
+    // once done it keeps driving off into the distance
+    G.gap += ((G.phase === 'leave' ? want + 4500 : want) - G.gap) * Math.min(1, dtl * (G.phase === 'leave' ? 0.7 : 1.6));
+    G.lat += (G.lane * LANE - G.lat) * Math.min(1, dtl * 5);
+    G.s = s + G.gap;
+    if (G.done) return;
+    if (G.phase === 'enter' && time - G.t0 > 1.5) { G.phase = 'drop'; G.next = time + 0.3; }
+    if (G.phase === 'drop') {
+      if (G.drops <= 0 || G.s - 115 > seg.len - 260) G.phase = 'leave';
+      else if (time >= G.next) {
+        if (!G.plan) {
+          // usually heads for your lane, so you have to move
+          const to = Math.random() < 0.6 ? lane : [-1, 0, 1][Math.floor(Math.random() * 3)];
+          G.plan = { to, at: time }; G.blink = Math.sign(to - G.lane);
+        } else {
+          const e = time - G.plan.at;
+          if (e > 0.55 && G.lane !== G.plan.to) { G.lane = G.plan.to; G.blink = 0; blip(330, 0.12, 'square', 0.04); }
+          if (e > 1.05) {
+            const kind = Math.random() < 0.5 ? 'crate' : 'barrel', o = { s: G.s - 115, lane: G.lane, kind, r: KINDS[kind].r, rot: Math.random() * 6 };
+            seg.obs.push(o); G.last = o; G.drops--; G.plan = null; G.blink = 0; G.next = time + 0.25;
+            const P = posOf(seg, o.s, o.lane * LANE);
+            for (let i = 0; i < 8; i++) particles.push({ x: P.x, y: P.y, vx: (Math.random() - .5) * 90, vy: (Math.random() - .5) * 90, life: 0, max: 0.6, size: 6 + Math.random() * 6, kind: 'puff' });
+            blip(140, 0.18, 'square', 0.05);
+          }
+        }
+      }
+    }
+    if (G.phase === 'leave' && (!G.last || s > G.last.s + 40) && state === 'play') { G.done = true; bossReward('BIG RIG ESCAPED'); }
+  }
+
+  // Mothership: a giant UFO hovers ahead and fires its tractor beam down a lane. The lane glows first, then the beam
+  // hits; from the fourth zap it beams two lanes at once, leaving one safe.
+  function updateUfo(seg) {
+    const U = seg.ufo;
+    if (U.phase === 'idle') {
+      if (launchT <= 1.55 || s < U.at) return;
+      U.phase = 'enter'; U.t0 = time; U.until = time + 1.6;
+      showBanner('BOSS', 'Mothership');
+      [196, 247, 294, 392].forEach((f, i) => setTimeout(() => blip(f, 0.3, 'sine', 0.06), i * 140));
+    }
+    if (time < U.until) {
+      if (U.phase === 'fire' && !U.hit && reviveT <= 0 && U.lanes.some(l => Math.abs(lat - l * LANE) < LANE / 2 - 3)) {
+        U.hit = true;
+        if (fx.shield > 0 || fx.turbo > 0) { if (fx.turbo <= 0) fx.shield = 0; popText('SHIELD!'); blip(700, 0.15, 'triangle', 0.06); }
+        else crash('The mothership beamed you up.');
+      }
+      return;
+    }
+    const nearEnd = s > seg.len - (effSpeed() * 2.4 + 200);
+    if (U.phase === 'enter' || U.phase === 'gap') {
+      if (U.zaps <= 0 || nearEnd) { U.phase = 'leave'; U.until = time + 1.4; return; }
+      const two = U.zaps <= 3;
+      const other = [-1, 0, 1].filter(l => l !== lane);
+      U.lanes = two ? [lane, other[Math.floor(Math.random() * 2)]] : [lane];
+      U.phase = 'warn'; U.until = time + Math.max(0.7, 1 - (effSpeed() - 320) / 2000);
+      blip(520, 0.1, 'sine', 0.05); setTimeout(() => blip(520, 0.1, 'sine', 0.05), 220);
+    } else if (U.phase === 'warn') {
+      U.phase = 'fire'; U.until = time + 0.45; U.hit = false;
+      blip(880, 0.4, 'sawtooth', 0.05); blip(110, 0.45, 'sawtooth', 0.05);
+    } else if (U.phase === 'fire') {
+      U.zaps--; U.phase = 'gap'; U.until = time + 0.45;
+    } else if (U.phase === 'leave' && state === 'play') {
+      U.done = true; bossReward('MOTHERSHIP ESCAPED');
     }
   }
   function drawBossFlat(list) {
     for (const g of list) {
+      const U = g.ufo;
+      if (U && (U.phase === 'warn' || U.phase === 'fire') && g === segs[segIdx]) {
+        const warn = U.phase === 'warn', end = Math.min(g.len + W, s + 900);
+        if (!warn || Math.sin(time * 22) > -0.3) fillPolys(U.lanes.map(l => segQuad(g, l * LANE - LANE / 2 + 3, s - 140, l * LANE + LANE / 2 - 3, end, 0.3)), warn ? 'rgba(120,255,170,0.28)' : 'rgba(190,255,215,0.7)');
+      }
       const T = g.train;
       if (!T) continue;
       for (let x = -W / 2 - 300; x < W / 2 + 300; x += 24) fillPoly(segQuad(g, x, T.s - 20, x + 9, T.s + 20, 0.2), '#4a3a2a');
@@ -2546,6 +2640,8 @@
   }
   function bossItems(list) {
     for (const g of list) {
+      if (g.rig) rigItems(g);
+      if (g.ufo) ufoItems(g);
       const T = g.train;
       if (!T) continue;
       const on = T.t0 !== null && !T.done;
@@ -2576,18 +2672,87 @@
       }
     }
   }
+  function rigItems(g) {
+    const G = g.rig;
+    if (G.phase === 'idle' || G.s === undefined || G.gap > 3200 || g !== segs[segIdx]) return;
+    const rot = g.h * Math.PI / 2;
+    const tp = posOf(g, G.s, G.lat), cp = posOf(g, G.s + 132, G.lat), p = proj(tp.x, tp.y, 0), pc = proj(cp.x, cp.y, 0);
+    if (inView(pc, 200)) add(pc.z, () => drawBox(cp.x, cp.y, 50, 56, 54, rot, ['#c0312a', '#8f231f', '#a62a24'], null));
+    if (!inView(p, 260)) return;
+    add(p.z, () => {
+      drawBox(tp.x, tp.y, 54, 200, 66, rot, ['#eef0f2', '#c3c8cf', '#d5d9df'], null);
+      // rear doors: reflective stripe, tail lights and the turn signal
+      const rear = G.s - 100.5;
+      const sa = posOf(g, rear, G.lat - 25), sb = posOf(g, rear, G.lat + 25);
+      fillPoly([[sa.x, sa.y, 10], [sb.x, sb.y, 10], [sb.x, sb.y, 15], [sa.x, sa.y, 15]], '#e4572e');
+      const blinkOn = Math.sin(time * 14) > 0;
+      for (const sd of [-1, 1]) {
+        const lp = posOf(g, rear - 1, G.lat + sd * 22), lit = G.blink === sd && blinkOn;
+        billboard(lp.x, lp.y, lit ? 30 : 22);
+        ctx.fillStyle = lit ? '#ffb300' : '#c0312a'; circle(ctx, 0, 0, lit ? 7 : 4.5);
+        if (lit) { ctx.fillStyle = 'rgba(255,190,60,0.35)'; circle(ctx, 0, 0, 16); }
+        ctx.restore();
+      }
+    });
+  }
+  function ufoItems(g) {
+    const U = g.ufo;
+    if (U.phase === 'idle' || U.done || g !== segs[segIdx]) return;
+    const rise = U.phase === 'leave' ? (time - (U.until - 1.4)) * 320 : U.phase === 'enter' ? Math.max(0, U.until - time) * 160 : 0;
+    const H = 210 + Math.sin(time * 1.6) * 8 + rise, sp = posOf(g, Math.min(g.len + W, s + 950), 0), p = proj(sp.x, sp.y, H);
+    if (U.phase === 'fire') for (const l of U.lanes) {
+      const a = posOf(g, s - 60, l * LANE - 26), b2 = posOf(g, s - 60, l * LANE + 26), c = posOf(g, Math.min(g.len + W, s + 950), l * LANE * 0.25 + 20), d = posOf(g, Math.min(g.len + W, s + 950), l * LANE * 0.25 - 20);
+      add(proj(c.x, c.y, 0).z - 1, () => fillPoly([[a.x, a.y, 0], [b2.x, b2.y, 0], [c.x, c.y, H - 20], [d.x, d.y, H - 20]], 'rgba(170,255,210,0.32)'));
+    }
+    if (p.z < NEAR) return;
+    add(p.z, () => {
+      billboard(sp.x, sp.y, H);
+      ctx.fillStyle = 'rgba(150,255,190,0.16)'; ctx.beginPath(); ctx.ellipse(0, 10, 200, 46, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = 'rgba(140,240,255,0.85)'; ctx.beginPath(); ctx.ellipse(0, -18, 64, 44, 0, Math.PI, 0); ctx.fill();
+      ctx.fillStyle = '#5d6475'; ctx.beginPath(); ctx.ellipse(0, 6, 170, 34, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#8d93a3'; ctx.beginPath(); ctx.ellipse(0, -6, 160, 22, 0, 0, Math.PI * 2); ctx.fill();
+      const warn = U.phase === 'warn' || U.phase === 'fire';
+      ctx.fillStyle = warn ? '#9dffbf' : '#2b3040'; ctx.beginPath(); ctx.ellipse(0, 22, 46, 12, 0, 0, Math.PI * 2); ctx.fill();
+      for (let k = 0; k < 12; k++) {
+        const a = k / 12 * Math.PI * 2 + time * 1.5;
+        if (Math.sin(a) < 0) continue;
+        ctx.fillStyle = (k + Math.floor(time * 6)) % 2 ? '#ffe066' : '#ff5f6d';
+        circle(ctx, Math.cos(a) * 150, -6 + Math.sin(a) * 18, 6);
+      }
+      ctx.restore();
+    }, U.phase === 'leave' ? Math.max(0, 1 - rise / 450) : 1);
+  }
+  // The bomber flies in from the left, hangs overhead while it bombs, then flies off to the right
+  const BOMBER_ARRIVE = 2.2, BOMBER_LEAVE = 1.6;
   function drawBomber() {
     const g = segs[segIdx], Bm = g && g.bomb;
-    if (!Bm || !Bm.active || Bm.done || state !== 'play') return;
-    const tt = time - Bm.t0, u = vh / 800;
-    const x = ((tt * (vw + 500) / 5) % (vw + 500)) - 250, y = cam.hy * 0.55 + Math.sin(tt * 1.5) * 6;
-    ctx.save(); ctx.translate(x, y); ctx.scale(u * 1.2, u * 1.2);
-    ctx.fillStyle = 'rgba(30,32,40,0.9)';
-    ctx.beginPath(); ctx.ellipse(0, 0, 60, 10, 0, 0, Math.PI * 2); ctx.fill();
-    ctx.beginPath(); ctx.moveTo(-10, -2); ctx.lineTo(18, -48); ctx.lineTo(30, -48); ctx.lineTo(20, 0); ctx.lineTo(30, 48); ctx.lineTo(18, 48); ctx.lineTo(-10, 2); ctx.closePath(); ctx.fill();
-    ctx.beginPath(); ctx.moveTo(-52, 0); ctx.lineTo(-62, -18); ctx.lineTo(-54, -18); ctx.lineTo(-44, 0); ctx.closePath(); ctx.fill();
+    if (!Bm || !Bm.active || state !== 'play') return;
+    if (Bm.done && time - Bm.doneT > BOMBER_LEAVE) return;
+    // flies low enough in the sky to stay clear of the score signs
+    const tt = time - Bm.t0, u = vh / 800, home = vw * 0.5, hy = Math.max(cam.hy * 0.72, 118 * u);
+    let x, y, sc = 1.2;
+    if (tt < BOMBER_ARRIVE) {
+      const f = tt / BOMBER_ARRIVE, e = 1 - (1 - f) ** 3;
+      x = -260 * u + (home + 260 * u) * e; y = hy + 20 * u * (1 - e); sc = 0.8 + 0.4 * e;
+    } else if (!Bm.done) {
+      x = home + Math.sin((tt - BOMBER_ARRIVE) * 0.9) * vw * 0.05; y = hy + Math.sin(tt * 1.5) * 6 * u;
+    } else {
+      const f = (time - Bm.doneT) / BOMBER_LEAVE;
+      x = home + (vw * 0.5 + 300 * u) * f * f; y = hy - 60 * u * f;
+    }
+    ctx.save(); ctx.translate(x, y); ctx.scale(u * sc, u * sc);
+    // one outline path for the whole plane, so it stands out against dark skies too
+    ctx.beginPath();
+    ctx.ellipse(0, 0, 60, 10, 0, 0, Math.PI * 2);
+    ctx.moveTo(-10, -2); ctx.lineTo(18, -48); ctx.lineTo(30, -48); ctx.lineTo(20, 0); ctx.lineTo(30, 48); ctx.lineTo(18, 48); ctx.lineTo(-10, 2); ctx.closePath();
+    ctx.moveTo(-52, 0); ctx.lineTo(-62, -18); ctx.lineTo(-54, -18); ctx.lineTo(-44, 0); ctx.closePath();
+    ctx.lineWidth = 5; ctx.strokeStyle = 'rgba(255,240,220,0.55)'; ctx.lineJoin = 'round'; ctx.stroke();
+    ctx.fillStyle = '#2a2e38'; ctx.fill();
     ctx.fillStyle = 'rgba(200,210,220,0.35)'; for (const py of [-30, -16, 16, 30]) { ctx.beginPath(); ctx.ellipse(26, py, 2, 9, 0, 0, Math.PI * 2); ctx.fill(); }
-    ctx.fillStyle = Math.sin(time * 8) > 0 ? '#ff3b3b' : '#5a1a1a'; circle(ctx, 24, -48, 3);
+    const blink = Math.sin(time * 8) > 0;
+    ctx.fillStyle = blink ? '#ff3b3b' : '#5a1a1a'; circle(ctx, 24, -48, 4);
+    ctx.fillStyle = blink ? '#5be37d' : '#1d4a2a'; circle(ctx, 24, 48, 4);
+    ctx.fillStyle = Math.sin(time * 5) > 0.6 ? '#ffffff' : 'rgba(255,255,255,0.15)'; circle(ctx, -58, -16, 3.5);
     ctx.restore();
   }
 
